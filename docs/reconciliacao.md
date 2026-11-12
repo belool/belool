@@ -19,7 +19,7 @@
 | "The Cyborg Veteran" (grisalho, sobretudo, olho implantado) | **ZÉ BYTE** | Mentor experiente, desconfiado, tecnologia antiga | Aparenta ~55–60; bíblia diz 48 (subir idade ou aceitar visual "gasto") |
 | "The Cyber Ninja" | **VÉRTICE**? | Investigador disciplinado, rastreador | Sem máscara parece ~25; bíblia diz 38. Alternativa: personagem novo (agente da Ordecon) |
 
-**Sem imagem ainda:** Akira (executivo, 32), Luna (mensageira, 20), a mãe de Tokyo, o empresário do Ep. 1, a interface do Projeto Éden.
+**Sem imagem ainda:** Akira (executivo, 32), a mãe de Tokyo, o empresário do Ep. 1, a interface do Projeto Éden.
 
 ## 3. Cenários por episódio
 

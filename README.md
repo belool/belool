@@ -1,6 +1,9 @@
-# TOKYO 2077 — 東京 2077
+# TOKYO: RIO 2077
 
-Projeto de vídeo em anime (estilo 2D cyberpunk, neon roxo/ciano).
+Anime 2D cyberpunk brasileiro — 1ª temporada, 8 episódios de ~12 min.
+
+- Bíblia da série: [`docs/biblia.md`](docs/biblia.md)
+- Bíblia × imagens (conflitos e mapeamento): [`docs/reconciliacao.md`](docs/reconciliacao.md)
 
 ## Assets
 

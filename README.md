@@ -4,6 +4,10 @@ Anime 2D cyberpunk brasileiro — 1ª temporada, 8 episódios de ~12 min.
 
 - Bíblia da série: [`docs/biblia.md`](docs/biblia.md)
 - Bíblia × imagens (conflitos e mapeamento): [`docs/reconciliacao.md`](docs/reconciliacao.md)
+- **Roteiro do Ep. 1 — O golpe de um milhão:** [`docs/ep01_roteiro.md`](docs/ep01_roteiro.md)
+
+## Produção de vídeo
+`python3 tools/render_abertura.py` gera `renders/ep01_abertura.mp4` (1920×1080, 24 fps, ~2min10s): cold open, vinheta, montagem, cards dos personagens e início da cena 2. Usa os cenários, os retratos recortados em `assets/retratos/`, fontes OFL em `tools/fonts` e trilha sintetizada no próprio script (Python + numpy + Pillow + ffmpeg).
 
 ## Assets
 

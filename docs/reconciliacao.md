@@ -5,7 +5,7 @@
 | Tema | Bíblia | Imagens | Proposta |
 |---|---|---|---|
 | Corporação | **Helix Corporation** | **ORDECON** em 8 cenários (letreiros, pichação "Fora Ordecon", Beach Club, sede) | Manter as duas: Helix = matriz global; **Ordecon = braço da Helix que administra o Rio** (segurança, transporte, distrito). "Fora Ordecon" vira o grito da rua; Helix é o nome que só aparece quando a conspiração sobe de nível. Assim nenhuma imagem precisa ser refeita. |
-| Protagonista | Tokyo, **mulher**, 19 anos, golpista | Model sheet "Protagonist" é um **rapaz** de cabelo vermelho/preto e braço cibernético | Ver item 2. |
+| Protagonista | Tokyo, **mulher**, 19 anos, golpista | ✅ **Resolvido:** novo model sheet `00_tokyo_model_sheet.png` | — |
 | Título | TOKYO: RIO 2077 | Key visual: "TOKYO 2077 / 東京 2077" | Atualizar o logo para "TOKYO: RIO 2077". O fundo do key visual é uma cidade com letreiros japoneses — não é o Rio; ideal refazer o fundo com favela/Cristo. |
 | Região industrial | Centro Cinza | Placas "Centro Industrial" e também "Centro Cinza" (estação maglev) | Compatível: Centro Industrial = área dentro do Centro Cinza. |
 
@@ -13,7 +13,8 @@
 
 | Imagem | Proposta | Por quê | Ajustes |
 |---|---|---|---|
-| "The Hacker" (cabelo ciano, óculos, bomber verde, 1,55 m) | **TOKYO** | Mulher jovem, expressões sarcásticas (smirk, playful), tablet improvisado, jaqueta urbana funcional, sem força física — bate com a bíblia | Nenhum obrigatório |
+| `00_tokyo_model_sheet.png` (cabelo preto/roxo, headset) | **TOKYO** ✅ | Definido pelo autor | Model sheet sem altura nem título (screenshot cortado, 1220×736) |
+| "The Hacker" (cabelo ciano, óculos, bomber verde, 1,55 m) | **LUNA**? | Mulher jovem, ágil, comunicativa; bomber com patches combina com mensageira | A definir |
 | "The Protagonist" (cabelo vermelho, braço cibernético) | **NERO** | Jovem (~21), tecnológico, drone de assistência, holo-device | Nenhum obrigatório |
 | "The Cyborg Veteran" (grisalho, sobretudo, olho implantado) | **ZÉ BYTE** | Mentor experiente, desconfiado, tecnologia antiga | Aparenta ~55–60; bíblia diz 48 (subir idade ou aceitar visual "gasto") |
 | "The Cyber Ninja" | **VÉRTICE**? | Investigador disciplinado, rastreador | Sem máscara parece ~25; bíblia diz 38. Alternativa: personagem novo (agente da Ordecon) |

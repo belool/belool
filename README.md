@@ -13,6 +13,7 @@ Anime 2D cyberpunk brasileiro — 1ª temporada, 8 episódios de ~12 min.
 ### Personagens (`assets/personagens/`)
 | Arquivo | Personagem | Altura | Marcas visuais |
 |---|---|---|---|
+| `00_tokyo_model_sheet.png` | **TOKYO** (protagonista, 19 anos) — design oficial | — | Cabelo preto longo com mechas roxas, headset cyber com antena, jaqueta cropped roxa com circuitos, top preto, calça cargo preta com fivelas roxas, luvas sem dedos, tablet holográfico transparente, drone esférico roxo com asas. Paleta: preto, roxo, glow roxo, neon azul |
 | `01_protagonista_model_sheet.jpg` | O Protagonista | 1,78 m | Cabelo espetado preto/vermelho, undercut, jaqueta com circuitos magenta/ciano, braço cibernético esquerdo, drone de assistência |
 | `02_hacker_model_sheet.jpg` | A Hacker | 1,55 m | Cabelo ciano em maria-chiquinha, óculos roxos, jaqueta bomber verde com patches, tablet holográfico, drone de suporte |
 | `03_cyber_ninja_model_sheet.jpg` | O Cyber Ninja | 1,75 m | Capuz, máscara com visor azul, duas lâminas nas costas, gancho, shurikens; sem máscara: cabelo preto, cicatriz |

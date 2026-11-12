@@ -9,6 +9,8 @@ Uso: python3 tools/render_abertura.py [saida.mp4] [--preview SEG]
 """
 import math, os, random, subprocess, sys, wave
 import numpy as np
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import vozes
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageEnhance, ImageChops
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -81,7 +83,7 @@ def vignette():
         _vig = np.clip(1.15 - 0.45 * d ** 2, 0.35, 1)[..., None].astype(np.float32)
     return _vig
 
-GRAIN = [np.random.normal(0, 7, (H // 2, W // 2, 1)).astype(np.float32) for _ in range(6)]
+GRAIN = [np.random.normal(0, 4, (H // 2, W // 2, 1)).astype(np.float32) for _ in range(6)]
 
 def finish(im, fi, flicker=0.0):
     a = np.asarray(im, dtype=np.float32)
@@ -224,29 +226,43 @@ def hud_box(im, x, y, w, h, color=(79, 195, 255), alpha=1.0, fill=150):
 
 # ---------------------------------------------------------------- planos
 SHOTS = []
+VOX = []  # (tempo_global, wav, duração)
+def now(): return sum(d for d, _ in SHOTS)
+def lay(lines, t0, gap=0.4):
+    """Encadeia falas pela duração real da voz. lines: (quem, texto, retrato)."""
+    out, t = [], t0
+    base = now()
+    for who, txt, pic in lines:
+        path, d = vozes.fala(who, txt)
+        out.append((t, t + d + 0.15, who, txt, pic))
+        VOX.append((base + t, path, d))
+        t += d + gap
+    return out, t - gap
 def shot(dur):
     def deco(fn): SHOTS.append((dur, fn)); return fn
     return deco
 
-COLD = [  # (início, fim, quem, texto, retrato)
-    (3.2, 7.2, 'LUNA', 'Só confirmar a transferência, doutor Heitor. A Lista Âmbar não espera.', 'luna_sorriso.jpg'),
-    (7.6, 10.2, 'HEITOR VALADARES', 'Um milhão pra entrar numa praia.', None),
-    (10.6, 14.2, 'LUNA', 'Um milhão pra entrar *nesta* praia.', 'luna_confiante.jpg'),
-]
+COLD, _e = lay([
+    ('LUNA', 'Só confirmar a transferência, doutor Heitor. A Lista Âmbar não espera.', 'luna_sorriso.jpg'),
+    ('HEITOR VALADARES', 'Um milhão pra entrar numa praia.', None),
+    ('LUNA', 'Um milhão pra entrar *nesta* praia.', 'luna_confiante.jpg'),
+], 3.0, 0.45)
+SCAN = _e + 0.4
+BEACH_D = SCAN + 4.9
 def subs_at(lst, t, im):
     for s, e, who, txt, pic in lst:
         if s <= t < e:
             subtitle(im, who, txt.replace('*', ''), (t - s), pic)
 
-@shot(19.5)
+@shot(BEACH_D)
 def s_beach(t, fi):
-    im = kenburns(bg('11_ordecon_beach_club.jpg', 1.4), t / 19.5, 1.05, 1.55, (0.45, 0.5), (0.26, 0.42))
+    im = kenburns(bg('11_ordecon_beach_club.jpg', 1.4), t / BEACH_D, 1.05, 1.55, (0.45, 0.5), (0.26, 0.42))
     im = grade(im, 1.1, 0.92)
     if t < 2.5: im = Image.blend(Image.new('RGB', (W, H)), im, ease(t / 2.5))
     location_tag(im, 'ORDECON BEACH CLUB', 'DISTRITO IMPERIAL // PORTÃO VIP // 23:47', (t - 0.6) / 5)
     subs_at(COLD, t, im)
-    if 14.6 <= t < 19.5:
-        k = (t - 14.6)
+    if SCAN <= t < BEACH_D:
+        k = (t - SCAN)
         x, y, w, h = W - 640, BAR + 120, 560, 300
         hud_box(im, x, y, w, h, alpha=ease(k * 3))
         d = ImageDraw.Draw(im, 'RGBA')
@@ -267,9 +283,10 @@ def s_beach(t, fi):
             ImageDraw.Draw(im).text((x + 30, y + 240), 'DESTINO: LISTA ÂMBAR // HLX-ÂMB-0071', font=F_HUD_S, fill=(140, 200, 220))
     return finish(letterbox(im), fi, 0.02)
 
-FREEZE = [(0.6, 5.0, 'TOKYO (V.O.)', 'No Rio de 2077, tudo tem preço. Saúde, transporte, ar-condicionado, nome limpo.', 'tokyo_neutro.jpg')]
+FREEZE, _e = lay([('TOKYO (V.O.)', 'No Rio de 2077, tudo tem preço. Saúde, transporte, ar-condicionado, nome limpo.', 'tokyo_neutro.jpg')], 0.7)
+FREEZE_D = _e + 0.9
 _frozen = {}
-@shot(6.3)
+@shot(FREEZE_D)
 def s_freeze(t, fi):
     if 'f' not in _frozen:
         base = kenburns(bg('11_ordecon_beach_club.jpg', 1.4), 1, 1.05, 1.55, (0.45, 0.5), (0.26, 0.42))
@@ -284,19 +301,21 @@ def s_freeze(t, fi):
     subs_at(FREEZE, t, im)
     return finish(letterbox(im), fi)
 
-VO2 = [(0.5, 4.0, 'TOKYO (V.O.)', 'Até a verdade.', 'tokyo_neutro.jpg'),
-       (4.4, 8.6, 'TOKYO (V.O.)', 'Mas essa ninguém vende. Essa tu tem que roubar.', 'tokyo_neutro.jpg')]
-@shot(12.5)
+VO2, _e = lay([('TOKYO (V.O.)', 'Até a verdade.', 'tokyo_neutro.jpg'),
+       ('TOKYO (V.O.)', 'Mas essa ninguém vende. Essa tu tem que roubar.', 'tokyo_neutro.jpg')], 0.7, 0.6)
+T3 = _e + 0.5
+MORRO_D = T3 + 3.2
+@shot(MORRO_D)
 def s_morro(t, fi):
-    im = kenburns(bg('15_favela_vertical_cristo.jpg', 1.5), t / 12.5, 1.25, 1.05, (0.5, 0.78), (0.55, 0.35))
+    im = kenburns(bg('15_favela_vertical_cristo.jpg', 1.5), t / MORRO_D, 1.25, 1.05, (0.5, 0.78), (0.55, 0.35))
     im = grade(im, 1.05, 0.95)
     im = rain(im, fi, 0.8)
     if t < 0.8: im = Image.blend(Image.new('RGB', (W, H), (255, 255, 255)), im, ease(t / 0.8))
     subs_at(VO2, t, im)
-    if t > 9.0:
-        a = ease((t - 9.0) / 0.6) * (1 - ease((t - 11.8) / 0.7))
+    if t > T3:
+        a = ease((t - T3) / 0.6) * (1 - ease((t - T3 - 2.5) / 0.7))
         ov = Image.new('RGB', (W, H)); im = Image.blend(im, ov, 0.55 * a)
-        text_glow(im, (W / 2, H / 2), typed('TRÊS DIAS ANTES.', (t - 9.0) * 1.6), F_TITLE, (255, 255, 255), glow=12, anchor='mm', alpha=a)
+        text_glow(im, (W / 2, H / 2), typed('TRÊS DIAS ANTES.', (t - T3) * 1.6), F_TITLE, (255, 255, 255), glow=12, anchor='mm', alpha=a)
     return finish(letterbox(im), fi, 0.03)
 
 @shot(8.0)
@@ -357,6 +376,9 @@ CD = 2.6
 def make_card(i, entry):
     nome, sub, fala, pic, back = entry
     col = COR[nome]
+    (_, _, _, _, _), = lay([(nome, fala, pic)], 0.6)[0]
+    fd = VOX[-1][2]
+    CD = max(2.6, 0.6 + fd + 0.7)
     @shot(CD)
     def s(t, fi):
         im = kenburns(bg(back, 1.3), t / CD, 1.15, 1.05, (0.5, 0.5), (0.45 + 0.1 * (i % 2), 0.5))
@@ -374,7 +396,7 @@ def make_card(i, entry):
         tx = x + p.width + 90
         text_glow(im, (tx, H / 2 - 110), nome, F_LOGO_S if len(nome) < 6 else F_LOGO_S, col, glow=18, alpha=k)
         text_glow(im, (tx + 4, H / 2 - 10), typed(sub, (t - 0.3) * 2), F_HUD, (255, 255, 255), glow=4)
-        text_glow(im, (tx + 4, H / 2 + 60), typed(fala, (t - 0.6) * 1.4), F_SUB, (220, 220, 235), glow=0)
+        text_glow(im, (tx + 4, H / 2 + 60), typed(fala, (t - 0.6) / fd), F_SUB, (220, 220, 235), glow=0)
         im = glitch(im, max(0, 0.7 - t * 4), fi)
         return finish(letterbox(im), fi)
 for i, e in enumerate(CARDS): make_card(i, e)
@@ -387,18 +409,20 @@ def s_ep(t, fi):
     text_glow(im, (W / 2, H / 2 + 30), 'O GOLPE DE UM MILHÃO', F_TITLE, (255, 255, 255), glow=10, anchor='mm', alpha=a)
     return finish(im, fi)
 
-LAJE = [
-    (1.5, 6.0, 'TOKYO', '"Acorda às quatro, toma banho gelado, e o universo te paga."', 'tokyo_neutro.jpg'),
-    (6.3, 9.6, 'TOKYO', 'Tá certo, Heitor. O universo vai te cobrar.', 'tokyo_neutro.jpg'),
-    (10.4, 14.4, 'LUNA', 'Pastel de carne. A Dona Cida mandou dizer que tu tá devendo três.', 'luna_neutra.jpg'),
-    (14.7, 18.7, 'TOKYO', 'Quatro. Mas ela não conta o de queijo porque tem pena de mim.', 'tokyo_neutro.jpg'),
-    (19.2, 24.0, 'LUNA', 'Esse aí? O cara do "mentalidade vencedora"? Coé, Tokyo, a empresa dele É segurança.', 'luna_neutra.jpg'),
-    (24.3, 28.6, 'TOKYO', 'Por isso mesmo. Ele passou a vida vendendo medo pros outros.', 'tokyo_neutro.jpg'),
-    (28.8, 32.0, 'TOKYO', 'Nunca parou pra pensar do que ele tem medo.', 'tokyo_neutro.jpg'),
-    (32.4, 34.6, 'LUNA', 'E do que ele tem medo?', 'luna_neutra.jpg'),
-    (35.0, 38.4, 'TOKYO', 'De ficar do lado de fora.', 'tokyo_neutro.jpg'),
-]
-LD = 39.0
+LAJE, _e = lay([
+    ('TOKYO', '"Acorda às quatro, toma banho gelado, e o universo te paga."', 'tokyo_neutro.jpg'),
+    ('TOKYO', 'Tá certo, Heitor. O universo vai te cobrar.', 'tokyo_neutro.jpg'),
+    ('LUNA', 'Pastel de carne. A Dona Cida mandou dizer que tu tá devendo três.', 'luna_neutra.jpg'),
+    ('TOKYO', 'Quatro. Mas ela não conta o de queijo porque tem pena de mim.', 'tokyo_neutro.jpg'),
+    ('LUNA', 'Esse aí? O cara do "mentalidade vencedora"? Coé, Tokyo, a empresa dele É segurança.', 'luna_neutra.jpg'),
+    ('TOKYO', 'Por isso mesmo. Ele passou a vida vendendo medo pros outros.', 'tokyo_neutro.jpg'),
+    ('TOKYO', 'Nunca parou pra pensar do que ele tem medo.', 'tokyo_neutro.jpg'),
+    ('LUNA', 'E do que ele tem medo?', 'luna_neutra.jpg'),
+    ('TOKYO', 'De ficar do lado de fora.', 'tokyo_neutro.jpg'),
+], 1.5, 0.45)
+LD = _e + 1.2
+TAB_END = LAJE[1][1] + 0.4
+FOTO_T = LAJE[-1][0] - 0.2
 @shot(LD)
 def s_laje(t, fi):
     im = kenburns(bg('12_laje_favela_noite.jpg', 1.45), t / LD, 1.3, 1.08, (0.3, 0.62), (0.55, 0.45))
@@ -407,8 +431,8 @@ def s_laje(t, fi):
     if t < 1.0: im = Image.blend(Image.new('RGB', (W, H)), im, ease(t))
     location_tag(im, 'NOVA ESPERANÇA', 'LAJE DA TOKYO // 3 DIAS ANTES // 01:12', (t - 0.3) / 5)
     # tela do tablet com o feed do alvo
-    if 1.2 < t < 10.0:
-        k = ease((t - 1.2) / 0.5) * (1 - ease((t - 9.4) / 0.6))
+    if 1.2 < t < TAB_END:
+        k = ease((t - 1.2) / 0.5) * (1 - ease((t - TAB_END + 0.6) / 0.6))
         x, y, w, h = W - 700, BAR + 70, 620, 380
         hud_box(im, x, y, w, h, (186, 85, 255), k, 190)
         d = ImageDraw.Draw(im, 'RGBA')
@@ -421,11 +445,11 @@ def s_laje(t, fi):
             yy = y + 120 + i * 70
             d.rectangle((x + 30, yy, x + w - 30, yy + 56), fill=(40, 20, 70, int(170 * k)))
             d.text((x + 46, yy + 16), p_, font=F_HUD_S, fill=(255, 255, 255, a))
-        if t > 5.0:
+        if t > LAJE[0][1]:
             d.text((x + 30, y + h - 46), '> ALVO: perfil emocional = VAIDADE // MEDO DE EXCLUSÃO', font=F_HUD_S, fill=(255, 59, 92, a))
     # foto do Heitor barrado
-    if 34.6 < t < LD:
-        k = ease((t - 34.6) / 0.4)
+    if FOTO_T < t < LD:
+        k = ease((t - FOTO_T) / 0.4)
         x, y, w, h = W - 640, BAR + 80, 560, 320
         hud_box(im, x, y, w, h, (255, 59, 92), k, 200)
         d = ImageDraw.Draw(im, 'RGBA')
@@ -436,11 +460,11 @@ def s_laje(t, fi):
     subs_at(LAJE, t, im)
     return finish(letterbox(im), fi, 0.03)
 
-DRONE = [
-    (3.2, 6.6, 'LUNA', 'Tu já sabe o ângulo de cabeça de cada drone, né?', 'luna_sorriso.jpg'),
-    (7.0, 11.8, 'TOKYO', 'Modelo V-6: quinze graus. O V-8 é mais esperto. Esse eu só evito.', 'tokyo_neutro.jpg'),
-]
-DD = 15.0
+DRONE, _e = lay([
+    ('LUNA', 'Tu já sabe o ângulo de cabeça de cada drone, né?', 'luna_sorriso.jpg'),
+    ('TOKYO', 'Modelo V-6: quinze graus. O V-8 é mais esperto. Esse eu só evito.', 'tokyo_neutro.jpg'),
+], 3.3, 0.45)
+DD = _e + 2.6
 @shot(DD)
 def s_drone(t, fi):
     im = kenburns(bg('12_laje_favela_noite.jpg', 1.45), t / DD, 1.1, 1.18, (0.58, 0.44), (0.62, 0.4))
@@ -588,6 +612,16 @@ def render_audio(total, cues, path):
     L = int(3.2 * SR); tt_ = np.arange(L) / SR
     whine = np.sin(2 * np.pi * np.cumsum(420 + 80 * np.sin(tt_ * 2)) / SR) * np.sin(np.pi * tt_ / 3.2) ** 2
     add(whine.astype(np.float32), c['drone'], 0.12)
+    # ducking da música + vozes
+    duck = np.ones(n, np.float32)
+    for at, path, d in VOX:
+        i = max(0, int((at - 0.15) * SR)); j = min(n, int((at + d + 0.25) * SR)); duck[i:j] = 0.32
+    k = int(0.2 * SR); duck = np.convolve(duck, np.ones(k, np.float32) / k, 'same')
+    out *= duck
+    for at, path, d in VOX:
+        with wave.open(path) as w:
+            v = np.frombuffer(w.readframes(w.getnframes()), np.int16).astype(np.float32) / 32768
+        add(v, at, 0.95)
     # master
     fade = int(2.5 * SR); out[-fade:] *= np.linspace(1, 0, fade)
     out = np.tanh(out * 1.2) * 0.85
@@ -607,7 +641,7 @@ def main():
     total = acc
     names = [fn.__name__ for _, fn in SHOTS]
     idx = lambda n: starts[names.index(n)]
-    cues = {'scan': 14.6, 'auth': 17.0, 'freeze': idx('s_freeze'), 'morro': idx('s_morro'), 'logo': idx('s_logo'),
+    cues = {'scan': SCAN, 'auth': SCAN + 2.4, 'freeze': idx('s_freeze'), 'morro': idx('s_morro'), 'logo': idx('s_logo'),
             'montage': idx('s_logo') + 8.0, 'ep': idx('s_ep'), 'laje': idx('s_laje'), 'drone': idx('s_drone'),
             'cuts': [starts[i] for i, n in enumerate(names) if n == 's']}
     wav = out.replace('.mp4', '.wav')
@@ -621,7 +655,7 @@ def main():
                 fn(t - s, int(t * FPS)).save(out.replace('.mp4', f'_{t:05.1f}.png'))
         return
     cmd = ['ffmpeg', '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{W}x{H}', '-r', str(FPS),
-           '-i', '-', '-i', wav, '-c:v', 'libx264', '-preset', 'medium', '-crf', '19', '-pix_fmt', 'yuv420p',
+           '-i', '-', '-i', wav, '-c:v', 'libx264', '-preset', 'medium', '-crf', '22', '-pix_fmt', 'yuv420p',
            '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', out]
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     fi = 0

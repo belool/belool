@@ -33,6 +33,9 @@ Projeto de vídeo em anime (estilo 2D cyberpunk, neon roxo/ciano).
 | 12 | `12_laje_favela_noite.jpg` | Laje na favela à noite ("Nova Esperança") | Periferia |
 | 13 | `13_tunel_metro_abandonado.jpg` | Túnel do Metrô RJ abandonado ("Fora Ordecon") | Subsolo |
 | 14 | `14_zona_norte_abandonada.jpg` | Zona Norte abandonada, tomada pela vegetação | Ruínas |
+| 15 | `15_favela_vertical_cristo.jpg` | Favela vertical com Cristo ao fundo (variação do 01) | Periferia |
+| 16 | `16_beco_nova_esperanca.jpg` | Beco/escadaria "Nova Esperança 2077": Botequim, Peças, Oficina Cyber | Periferia |
+| 17 | `17_casa_interior_sala.jpg` | Sala de casa na favela, TV com holograma, janela p/ o Cristo | Periferia |
 
 ## Observações
 - A cidade dos cenários é claramente o **Rio de Janeiro** (Cristo, Pão de Açúcar, Metrô RJ), enquanto o key visual mostra Tóquio. A definir pela bíblia.

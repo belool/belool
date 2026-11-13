@@ -614,12 +614,12 @@ def render_audio(total, cues, path):
     add(whine.astype(np.float32), c['drone'], 0.12)
     # ducking da música + vozes
     duck = np.ones(n, np.float32)
-    for at, path, d in VOX:
+    for at, vp, d in VOX:
         i = max(0, int((at - 0.15) * SR)); j = min(n, int((at + d + 0.25) * SR)); duck[i:j] = 0.32
     k = int(0.2 * SR); duck = np.convolve(duck, np.ones(k, np.float32) / k, 'same')
     out *= duck
-    for at, path, d in VOX:
-        with wave.open(path) as w:
+    for at, vp, d in VOX:
+        with wave.open(vp) as w:
             v = np.frombuffer(w.readframes(w.getnframes()), np.int16).astype(np.float32) / 32768
         add(v, at, 0.95)
     # master

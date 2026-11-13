@@ -25,9 +25,12 @@ ELENCO = {
     'ZÉ BYTE': ({'pm_santa': 0.8, 'am_onyx': 0.2}, 0.94, -2.0, None),
     'HEITOR':  ({'pm_alex': 0.7, 'pm_santa': 0.3}, 0.98, -1.0, None),
     'ÉDEN':    ({'pf_dora': 1.0}, 0.92, -1.5, 'robo'),
+    'DONA CIDA': ({'pf_dora': 1.0}, 0.96, -3.2, None),
+    'AKIRA':   ({'pm_alex': 0.85, 'pm_santa': 0.15}, 0.88, -2.4, 'sala'),
 }
 GOOGLE = {'TOKYO': 'pt-BR-Chirp3-HD-Leda', 'LUNA': 'pt-BR-Chirp3-HD-Aoede', 'NERO': 'pt-BR-Chirp3-HD-Puck',
-          'ZÉ BYTE': 'pt-BR-Chirp3-HD-Charon', 'HEITOR': 'pt-BR-Chirp3-HD-Orus', 'ÉDEN': 'pt-BR-Chirp3-HD-Kore'}
+          'ZÉ BYTE': 'pt-BR-Chirp3-HD-Charon', 'HEITOR': 'pt-BR-Chirp3-HD-Orus', 'ÉDEN': 'pt-BR-Chirp3-HD-Kore',
+          'DONA CIDA': 'pt-BR-Chirp3-HD-Gacrux', 'AKIRA': 'pt-BR-Chirp3-HD-Enceladus'}
 
 def personagem(who):
     for k in ELENCO:
@@ -61,6 +64,10 @@ def _filtros(pitch, fx):
     if pitch:
         r = 2 ** (pitch / 12)
         f += [f'asetrate=24000*{r:.5f}', 'aresample=24000', f'atempo={1 / r:.5f}']
+    if fx == 'radio':
+        f += ['highpass=f=380', 'lowpass=f=3300', 'acompressor=threshold=-20dB:ratio=6', 'volume=1.4']
+    if fx == 'sala':
+        f += ['aecho=0.7:0.5:40|70:0.18|0.1']
     if fx == 'robo':
         f += ['aecho=0.8:0.6:12|24:0.35|0.2', 'highpass=f=180', 'lowpass=f=6500', 'vibrato=f=7:d=0.08']
     f += ['silenceremove=start_periods=1:start_threshold=-45dB', 'areverse',
@@ -68,9 +75,11 @@ def _filtros(pitch, fx):
     return ','.join(f)
 
 def fala(who, txt):
-    """Retorna (caminho_wav, duração_s) da fala, sintetizando se necessário."""
+    """Retorna (caminho_wav, duração_s) da fala, sintetizando se necessário.
+    Se `who` contém RÁDIO, aplica filtro de rádio."""
     p = personagem(who)
     mix, speed, pitch, fx = ELENCO[p]
+    if 'RÁDIO' in who.upper(): fx = 'radio'
     text = limpa(txt)
     chave = f'{MOTOR}|{GOOGLE[p] if MOTOR == "google" else sorted(mix.items())}|{speed}|{pitch}|{fx}|{text}'
     h = hashlib.sha1(chave.encode()).hexdigest()[:16]

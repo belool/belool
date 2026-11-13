@@ -7,6 +7,10 @@ Anime 2D cyberpunk brasileiro — 1ª temporada, 8 episódios de ~12 min.
 - **Roteiro do Ep. 1 — O golpe de um milhão:** [`docs/ep01_roteiro.md`](docs/ep01_roteiro.md)
 
 ## Produção de vídeo
+`python3 tools/ep01.py` gera o **Episódio 1 completo** (`renders/ep01_completo.mp4`, ~7 min): abertura + cenas 3 a 11 do roteiro, com vozes, trilha por clima de cena e renderização em 3 processos paralelos. `--preview 130,200` exporta quadros para conferência.
+
+Vozes: `tools/vozes.py` usa o **Kokoro** (modelo aberto, roda local, sem custo). Primeira vez: `pip install kokoro-onnx soundfile` e `python3 tools/vozes.py --baixar`. O Google TTS fica como opção (`VOZES_MOTOR=google`, exige faturamento).
+
 `python3 tools/render_abertura.py` gera `renders/ep01_abertura.mp4` (1920×1080, 24 fps, ~2min10s): cold open, vinheta, montagem, cards dos personagens e início da cena 2. Usa os cenários, os retratos recortados em `assets/retratos/`, fontes OFL em `tools/fonts` e trilha sintetizada no próprio script (Python + numpy + Pillow + ffmpeg).
 
 ## Assets

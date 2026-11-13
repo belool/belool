@@ -38,7 +38,8 @@ F_TITLE = font('Rajdhani-Bold.ttf', 64)
 F_LOC = font('Rajdhani-Bold.ttf', 40)
 
 COR = {'TOKYO': (186, 85, 255), 'LUNA': (46, 230, 214), 'NERO': (255, 59, 92),
-       'ZÉ BYTE': (159, 179, 200), 'HEITOR': (232, 194, 106), 'ÉDEN': (79, 195, 255)}
+       'ZÉ': (159, 179, 200), 'ZÉ BYTE': (159, 179, 200), 'HEITOR': (232, 194, 106), 'ÉDEN': (79, 195, 255),
+       'DONA': (255, 170, 90), 'AKIRA': (235, 235, 245)}
 
 # ---------------------------------------------------------------- assets
 _cache = {}
@@ -193,7 +194,7 @@ def _subtitle(im, who, txt, k=1.0, pic=None):
         x = 70; y = H - BAR - p.height - 40 - int((1 - a) * 30)
         frame = Image.new('RGBA', (p.width + 12, p.height + 12), col + (0,))
         fd = ImageDraw.Draw(frame)
-        fd.rectangle((0, 0, frame.width - 1, frame.height - 1), outline=col + (255,), width=3)
+        fd.rectangle((0, 0, frame.width - 1, frame.height - 1), outline=col + (int(255 * a),), width=3)
         glowf = frame.filter(ImageFilter.GaussianBlur(8))
         im.paste(glowf, (x - 6, y - 6), glowf)
         pm = Image.new('L', p.size, int(255 * a))
@@ -232,8 +233,8 @@ def lay(lines, t0, gap=0.4):
     """Encadeia falas pela duração real da voz. lines: (quem, texto, retrato)."""
     out, t = [], t0
     base = now()
-    for who, txt, pic in lines:
-        path, d = vozes.fala(who, txt)
+    for who, txt, pic, *tts in lines:
+        path, d = vozes.fala(who, tts[0] if tts else txt)
         out.append((t, t + d + 0.15, who, txt, pic))
         VOX.append((base + t, path, d))
         t += d + gap
@@ -250,9 +251,11 @@ COLD, _e = lay([
 SCAN = _e + 0.4
 BEACH_D = SCAN + 4.9
 def subs_at(lst, t, im):
-    for s, e, who, txt, pic in lst:
+    for i, (s, e, who, txt, pic) in enumerate(lst):
         if s <= t < e:
-            subtitle(im, who, txt.replace('*', ''), (t - s), pic)
+            j = i  # mesma pessoa falando em sequência: não refaz o fade do retrato
+            while j > 0 and lst[j - 1][2] == who and s - lst[j - 1][1] < 1.0: j -= 1
+            subtitle(im, who, txt.replace('*', ''), (t - lst[j][0]), pic)
 
 @shot(BEACH_D)
 def s_beach(t, fi):
@@ -465,6 +468,7 @@ DRONE, _e = lay([
     ('TOKYO', 'Modelo V-6: quinze graus. O V-8 é mais esperto. Esse eu só evito.', 'tokyo_neutro.jpg'),
 ], 3.3, 0.45)
 DD = _e + 2.6
+CONTINUA = True  # ep01.py desliga para emendar com o resto do episódio
 @shot(DD)
 def s_drone(t, fi):
     im = kenburns(bg('12_laje_favela_noite.jpg', 1.45), t / DD, 1.1, 1.18, (0.58, 0.44), (0.62, 0.4))
@@ -476,11 +480,11 @@ def s_drone(t, fi):
         hud_box(im, x, y, 520, 150, (255, 59, 92), k, 170)
         d = ImageDraw.Draw(im, 'RGBA')
         d.text((x + 24, y + 22), 'DRONE ORDECON // MODELO V-6', font=F_HUD, fill=(255, 59, 92, int(255 * k)))
-        d.text((x + 24, y + 70), 'VARREDURA FACIAL ATIVA' + ('  ●' if fi % 12 < 6 else ''), font=F_HUD_S, fill=(255, 255, 255, int(255 * k)))
+        d.text((x + 24, y + 70), 'VARREDURA FACIAL ATIVA' + ('  [REC]' if fi % 12 < 6 else ''), font=F_HUD_S, fill=(255, 255, 255, int(255 * k)))
         d.text((x + 24, y + 104), 'ROSTOS DETECTADOS: 1 // IDENTIFICADOS: 0', font=F_HUD_S, fill=(200, 200, 220, int(255 * k)))
     im = rain(im, fi, 1.0)
     subs_at(DRONE, t, im)
-    if t > DD - 2.2:
+    if CONTINUA and t > DD - 2.2:
         a = ease((t - (DD - 2.2)) / 1.2)
         im = Image.blend(im, Image.new('RGB', (W, H)), a)
         text_glow(im, (W - 120, H - BAR - 60), 'CONTINUA…', F_LOC, (186, 85, 255), glow=10, anchor='rs', alpha=a)

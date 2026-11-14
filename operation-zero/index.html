@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operation Zero</title>
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="vignette"></div>
+  <div id="suppress"></div>
+  <div id="flashOverlay"></div>
+  <div id="scope" class="hidden"><div class="scope-ring"></div><div class="scope-h"></div><div class="scope-v"></div></div>
+  <div id="crosshair"><i class="ch t"></i><i class="ch b"></i><i class="ch l"></i><i class="ch r"></i><i class="dot"></i></div>
+  <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
+  <div id="dmgdirs"></div>
+  <div id="topLeft">
+    <div id="modeTitle"></div>
+    <div id="objective"></div>
+    <div id="radio"></div>
+  </div>
+  <div id="topCenter">
+    <div id="scores"></div>
+    <div id="timer"></div>
+    <div id="zones"></div>
+    <div id="bossbar" class="hidden"><div class="bname"></div><div class="bbar"><div class="bfill"></div></div></div>
+    <div id="compass"><div id="compassStrip"></div><div class="compass-mark"></div></div>
+  </div>
+  <div id="topRight">
+    <canvas id="minimap" width="220" height="220"></canvas>
+    <div id="killfeed"></div>
+  </div>
+  <div id="toasts"></div>
+  <div id="prompt"></div>
+  <div id="bottomLeft">
+    <div class="vitals">
+      <div class="bar armor"><div class="fill" id="armorFill"></div></div>
+      <div class="bar health"><div class="fill" id="healthFill"></div><span id="healthText">100</span></div>
+    </div>
+    <div id="stance"></div>
+  </div>
+  <div id="bottomRight">
+    <div id="weaponName"></div>
+    <div id="ammo"><span id="mag">30</span><span class="sep">/</span><span id="reserve">120</span></div>
+    <div id="weaponInfo"></div>
+    <div id="grenades"></div>
+  </div>
+  <div id="xpPop"></div>
+  <div id="death" class="hidden"><div class="dtitle">VOCÊ FOI ABATIDO</div><div class="dsub" id="deathSub"></div></div>
+  <div id="scoreboard" class="hidden"></div>
+  <div id="bigmap" class="hidden"><canvas id="bigmapCanvas" width="720" height="720"></canvas><div class="hint">[M] fechar</div></div>
+  <div id="shop" class="hidden"></div>
+  <div id="fps"></div>
+  <div id="reloadHint"></div>
+</div>
+
+<!-- MENUS -->
+<div id="menu"></div>
+<div id="modal" class="hidden"></div>
+<div id="loading" class="hidden"><div class="ltitle">CARREGANDO</div><div class="lsub" id="loadingSub"></div><div class="lbar"><div></div></div></div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

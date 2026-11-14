@@ -6,6 +6,9 @@ Anime 2D cyberpunk brasileiro — 1ª temporada, 8 episódios de ~12 min.
 - Bíblia × imagens (conflitos e mapeamento): [`docs/reconciliacao.md`](docs/reconciliacao.md)
 - **Roteiro do Ep. 1 — O golpe de um milhão:** [`docs/ep01_roteiro.md`](docs/ep01_roteiro.md)
 
+## Jogo: Operation Zero
+FPS tático jogável no navegador (campanha, multijogador contra IA, Battle Royale e sobrevivência) em [`operation-zero/`](operation-zero/README.md).
+
 ## Produção de vídeo
 `python3 tools/ep01.py` gera o **Episódio 1 completo** (`renders/ep01_completo.mp4`, ~7 min): abertura + cenas 3 a 11 do roteiro, com vozes, trilha por clima de cena e renderização em 3 processos paralelos. `--preview 130,200` exporta quadros para conferência.
 

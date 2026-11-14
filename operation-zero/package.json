@@ -1,0 +1,17 @@
+{
+  "name": "operation-zero",
+  "version": "0.1.0",
+  "description": "Operation Zero — FPS tático em WebGL (Three.js): campanha, multijogador contra IA, Battle Royale e sobrevivência.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node tools/serve.mjs 8080",
+    "test": "node --test tests/unit/*.test.mjs",
+    "e2e": "node tests/e2e/smoke.mjs",
+    "bench": "node tests/e2e/smoke.mjs --bench-only"
+  },
+  "devDependencies": {
+    "playwright": "^1.47.0"
+  },
+  "license": "MIT"
+}

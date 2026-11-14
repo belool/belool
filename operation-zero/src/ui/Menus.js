@@ -200,6 +200,12 @@ export class Menus {
   launch(cfg) {
     const g = this.game;
     g.audio.init(); g.audio.play('ui');
+    // celular: tela cheia + paisagem (precisa acontecer dentro do toque do usuário)
+    if (g.touch?.enabled && !g.testMode && !document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.({ navigationUI: 'hide' })
+        .then(() => screen.orientation?.lock?.('landscape').catch(() => {}))
+        .catch(() => {});
+    }
     $('loading').classList.remove('hidden');
     $('loadingSub').textContent = `${MAPS[cfg.map]?.name || ''}`;
     this.lastCfg = cfg;
@@ -382,6 +388,10 @@ export class Menus {
     ].join('');
     else if (this.setTab === 'controles') body = [
       rng('sensitivity', 0.2, 3, 0.05, 'Sensibilidade do mouse', (v) => Number(v).toFixed(2)), rng('adsSensitivity', 0.2, 1.5, 0.05, 'Sensibilidade mirando', (v) => Number(v).toFixed(2)), chk('invertY', 'Inverter eixo Y'),
+      sel('touchControls', 'Controles de toque', [['auto', 'Automático (celular/tablet)'], ['on', 'Sempre ligados'], ['off', 'Desligados']]),
+      rng('touchSens', 0.3, 3, 0.05, 'Sensibilidade do toque (mirar)', (v) => Number(v).toFixed(2)),
+      rng('touchScale', 0.7, 1.5, 0.05, 'Tamanho dos botões de toque', (v) => Math.round(v * 100) + '%'),
+      rng('touchOpacity', 0.15, 0.9, 0.05, 'Opacidade dos botões de toque', (v) => Math.round(v * 100) + '%'),
     ].join('') + `<div style="margin-top:16px">${controlsHtml()}</div>`;
     else body = [
       sel('difficulty', 'Dificuldade padrão', Object.entries(DIFFICULTY).map(([k, d]) => [k, d.name])),
@@ -398,6 +408,7 @@ export class Menus {
         const lab = c.querySelector('#v_' + k);
         if (lab) lab.textContent = el.closest('.li').querySelector('span').textContent = formatSetting(k, v);
         if (k === 'timeSpeed' && g.weather) g.weather.timeSpeed = v / 60;
+        g.touch?.applySettings();
         g.applySettings(); g.resize(); g.saveAll();
       };
     });
@@ -464,7 +475,8 @@ export class Menus {
 
 function pct(v) { return Math.round(v * 100) + '%'; }
 function formatSetting(k, v) {
-  if (['master', 'sfx', 'ambient', 'voice', 'renderScale', 'viewDistance', 'particles', 'fogMul'].includes(k)) return Math.round(v * 100) + '%';
+  if (k === 'touchSens') return Number(v).toFixed(2);
+  if (['touchScale', 'touchOpacity', 'master', 'sfx', 'ambient', 'voice', 'renderScale', 'viewDistance', 'particles', 'fogMul'].includes(k)) return Math.round(v * 100) + '%';
   if (k === 'fov') return v + '°';
   if (k === 'timeSpeed') return Number(v) === 0 ? 'parado' : v + 'h/min';
   return typeof v === 'number' ? v.toFixed(2) : v;
@@ -483,5 +495,6 @@ function upcoming(lv) {
 }
 export function controlsHtml() {
   const rows = [['Mover', 'W A S D'], ['Correr', 'Shift'], ['Agachar (alternar / segurar)', 'C / Ctrl'], ['Pular', 'Espaço'], ['Atirar / Mirar', 'Mouse esq. / dir.'], ['Recarregar', 'R'], ['Trocar arma', '1 / 2 / roda'], ['Modo de disparo', 'B'], ['Granada / trocar tipo', 'G / X'], ['Faca', 'V'], ['Interagir / veículo', 'E'], ['Ordem ao esquadrão', 'Q'], ['Lanterna', 'F'], ['Placar', 'Tab'], ['Mapa', 'M'], ['Loja (Sobrevivência)', 'I'], ['Pausa', 'Esc']];
-  return `<div class="controls">${rows.map(([a, k]) => `<div><span>${a}</span><span>${k.split(' / ').map((x) => `<kbd>${x}</kbd>`).join(' ')}</span></div>`).join('')}</div>`;
+  const touch = '<div class="sub" style="margin-top:12px">No celular: joystick à esquerda para andar (empurre até o fim para correr), arraste à direita para mirar, botões de tiro, mira, pular, agachar, recarregar, granada, faca e troca de arma. Ajuste tamanho e sensibilidade em Configurações → Controles.</div>';
+  return touch + `<div class="controls">${rows.map(([a, k]) => `<div><span>${a}</span><span>${k.split(' / ').map((x) => `<kbd>${x}</kbd>`).join(' ')}</span></div>`).join('')}</div>`;
 }

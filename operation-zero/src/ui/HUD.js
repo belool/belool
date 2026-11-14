@@ -224,9 +224,10 @@ export class HUD {
   renderShop() {
     const m = this.game.mode;
     if (!m.inBreak) { $('shop').classList.add('hidden'); this.game.shopOpen = false; this.game.input.lock(); return; }
-    $('shop').innerHTML = `<h2 style="margin:0">ARSENAL DE CAMPO</h2><div style="color:var(--dim)">Pontos: <b style="color:var(--accent)">${m.points}</b> · Próxima onda em ${Math.ceil(m.breakT)}s · [I] fechar</div>
+    $('shop').innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">ARSENAL DE CAMPO</h2><button class="btn ghost" data-close>Fechar</button></div><div style="color:var(--dim)">Pontos: <b style="color:var(--accent)">${m.points}</b> · Próxima onda em ${Math.ceil(m.breakT)}s · [I] fechar</div>
       <div class="shop-items">${SHOP.map((s) => `<button data-buy="${s.id}" ${m.points < s.cost ? 'disabled' : ''}>${s.name}<b>${s.cost}</b></button>`).join('')}</div>`;
     $('shop').querySelectorAll('[data-buy]').forEach((b) => b.onclick = () => { m.buy(b.dataset.buy); this.renderShop(); });
+    $('shop').querySelector('[data-close]').onclick = () => this.toggleShop();
   }
 
   drawMap(ctx, size, full) {

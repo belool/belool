@@ -30,6 +30,9 @@ export class Game {
     const saved = Save.load();
     this.profile = saved.profile;
     this.settings = saved.settings;
+    this.isTouchDevice = (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints || 0) > 0;
+    // primeira execução em celular: perfil gráfico mais leve
+    if (saved.fresh && this.isTouchDevice) Object.assign(this.settings, { quality: 'medium', renderScale: 0.8, shadowRes: 1024, particles: 0.7, viewDistance: 0.7, fov: 75 });
     this.events = new Events();
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.shadowMap.enabled = true;
@@ -297,8 +300,9 @@ export class Game {
     const it = p.intent;
     if (!p.alive) { it.forward = it.right = 0; it.fire = false; return; }
     if (p.vehicle) {
-      const thr = (inp.down('forward') ? 1 : 0) - (inp.down('back') ? 1 : 0);
-      const st = (inp.down('right') ? 1 : 0) - (inp.down('left') ? 1 : 0);
+      let thr = (inp.down('forward') ? 1 : 0) - (inp.down('back') ? 1 : 0);
+      let st = (inp.down('right') ? 1 : 0) - (inp.down('left') ? 1 : 0);
+      if (inp.touch.active) { thr = clamp(thr - inp.touch.moveY, -1, 1); st = clamp(st + inp.touch.moveX, -1, 1); }
       p.vehicle.control(thr, st, inp.down('jump'), dt);
       this.vehCamYaw = (this.vehCamYaw ?? 0) - inp.mouse.dx * 0.003;
       this.vehCamPitch = clamp((this.vehCamPitch ?? -0.25) - inp.mouse.dy * 0.003, -0.9, 0.3);
@@ -314,6 +318,12 @@ export class Game {
     it.forward = (inp.down('forward') ? 1 : 0) - (inp.down('back') ? 1 : 0);
     it.right = (inp.down('right') ? 1 : 0) - (inp.down('left') ? 1 : 0);
     it.sprint = inp.down('sprint');
+    if (inp.touch.active) {
+      // joystick analógico; empurrado até o fim para frente = correr
+      it.forward = clamp(it.forward - inp.touch.moveY, -1, 1);
+      it.right = clamp(it.right + inp.touch.moveX, -1, 1);
+      if (-inp.touch.moveY > 0.85 && Math.hypot(inp.touch.moveX, inp.touch.moveY) > 0.95) it.sprint = true;
+    }
     if (inp.hit('crouch')) this.crouchToggle = !this.crouchToggle;
     if (it.sprint && it.forward > 0) this.crouchToggle = false;
     it.crouch = this.crouchToggle || inp.down('crouch2');

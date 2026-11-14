@@ -14,6 +14,8 @@ npm start            # servidor estático em http://localhost:8080 (Node, sem de
 
 Abra `http://localhost:8080` no Chrome, Edge ou Firefox e clique na tela para capturar o mouse. `Esc` pausa.
 
+**No celular/tablet** os controles de toque ligam sozinhos: joystick flutuante na metade esquerda (empurre até o fim para frente para correr), arraste na metade direita para mirar, dois botões de tiro (o da direita também mira enquanto você arrasta), mira (alterna), pular, agachar, recarregar, granada, faca, troca de arma, interagir (aparece quando há algo para usar) e uma barra com pausa, mapa, placar, lanterna, modo de disparo, ordem ao esquadrão e loja. O jogo entra em tela cheia na horizontal e usa gráficos mais leves na primeira execução. Tamanho, opacidade e sensibilidade ficam em Configurações → Controles.
+
 | Ação | Tecla | Ação | Tecla |
 |---|---|---|---|
 | Mover | W A S D | Granada / trocar tipo | G / X |
@@ -99,7 +101,7 @@ operation-zero/
 │   ├── ai/                     AIManager, AIBrain, Squad, Director
 │   ├── modes/                  Mode, Multiplayer (TDM/Dominação/Captura), Survival, BattleRoyale, Campaign, campaignData
 │   ├── progression/            Progression (XP, níveis, desafios, conquistas, ranking)
-│   └── ui/                     HUD, Menus
+│   └── ui/                     HUD, Menus, TouchControls (celular)
 ├── tests/unit · tests/e2e
 └── tools/serve.mjs
 ```

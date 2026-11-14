@@ -16,6 +16,8 @@ export class Input {
     this.keys = new Set();
     this.pressed = new Set();
     this.mouse = { dx: 0, dy: 0, left: false, right: false, leftPressed: false, wheel: 0 };
+    // Estado virtual dos controles de toque (joystick analógico)
+    this.touch = { active: false, moveX: 0, moveY: 0 };
     this.locked = false;
     this.binds = { ...DEFAULT_BINDS };
     this.enabled = true;
@@ -32,6 +34,7 @@ export class Input {
       if (e.button === 2) this.mouse.right = true;
     });
     addEventListener('mouseup', (e) => {
+      if (this.touch.active) return; // eventos de mouse emulados pelo toque
       if (e.button === 0) this.mouse.left = false;
       if (e.button === 2) this.mouse.right = false;
     });
@@ -51,6 +54,9 @@ export class Input {
   down(action) { return this.keys.has(this.binds[action]); }
   hit(action) { return this.pressed.has(this.binds[action]); }
   hitCode(code) { return this.pressed.has(code); }
+  // Botões virtuais (toque): "aperta" uma ação como se fosse a tecla mapeada.
+  tap(action) { const c = this.binds[action] || action; this.pressed.add(c); }
+  hold(action, on) { const c = this.binds[action] || action; if (on) { if (!this.keys.has(c)) this.pressed.add(c); this.keys.add(c); } else this.keys.delete(c); }
   endFrame() {
     this.pressed.clear();
     this.mouse.dx = this.mouse.dy = 0; this.mouse.leftPressed = false; this.mouse.wheel = 0;

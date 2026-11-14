@@ -1,6 +1,7 @@
 import { Game } from './core/Game.js';
 import { HUD } from './ui/HUD.js';
 import { Menus } from './ui/Menus.js';
+import { TouchControls } from './ui/TouchControls.js';
 
 // Ponto de entrada: cria o jogo, a interface e o cenário do menu.
 const canvas = document.getElementById('game');
@@ -16,6 +17,7 @@ game.testMode = params.has('test');
 const hud = new HUD(game);
 const menus = new Menus(game, hud);
 game.hud = hud; game.menus = menus;
+game.touch = new TouchControls(game);
 game.setupMenuScene();
 menus.showHome('home');
 game.start();

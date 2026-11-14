@@ -117,7 +117,7 @@ button { font: inherit; }
 @keyframes xpfloat { 0% { opacity: 0; transform: translateY(8px); } 15% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
 
 /* ---------------- MENUS ---------------- */
-#menu { position: fixed; inset: 0; display: flex; background: linear-gradient(90deg, rgba(5,8,11,.94) 0%, rgba(5,8,11,.75) 42%, rgba(5,8,11,.1) 100%); overflow: auto; }
+#menu { position: fixed; inset: 0; z-index: 8; display: flex; background: linear-gradient(90deg, rgba(5,8,11,.94) 0%, rgba(5,8,11,.75) 42%, rgba(5,8,11,.1) 100%); overflow: auto; }
 #menu.overlay { background: rgba(5,8,11,.82); }
 .side { width: 380px; padding: 48px 40px; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
 .logo { font-size: 44px; font-weight: 900; letter-spacing: .08em; line-height: .95; }
@@ -204,3 +204,55 @@ kbd { background: #1c242d; border: 1px solid #344250; border-bottom-width: 2px; 
   #scoreboard { min-width: 92vw; }
   .opts { grid-template-columns: 1fr; }
 }
+
+/* ---------------- CONTROLES DE TOQUE ---------------- */
+#touch { position: fixed; inset: 0; z-index: 5; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; --tscale: 1; --topa: .55; }
+#touch .t-look { position: absolute; inset: 0; }
+.t-stick { position: absolute; width: calc(130px * var(--tscale)); height: calc(130px * var(--tscale)); transform: translate(-50%, -50%); border-radius: 50%; border: 2px solid rgba(255,255,255,.35); background: rgba(0,0,0,.18); pointer-events: none; }
+.t-knob { position: absolute; left: 50%; top: 50%; width: 46%; height: 46%; border-radius: 50%; background: rgba(255,255,255,.45); transform: translate(-50%,-50%); }
+.t-stick-hint { position: absolute; left: 8%; bottom: 18%; color: rgba(255,255,255,.25); font-size: 12px; letter-spacing: .3em; pointer-events: none; }
+body.touch .t-stick:not(.hidden) ~ .t-stick-hint { display: none; }
+.tbtn { position: absolute; display: grid; place-items: center; border-radius: 50%; color: #fff; font-weight: 800; font-size: calc(12px * var(--tscale)); letter-spacing: .05em;
+  background: rgba(20,26,32, var(--topa)); border: 2px solid rgba(255,255,255,.28); width: calc(58px * var(--tscale)); height: calc(58px * var(--tscale)); text-shadow: 0 1px 2px #000; }
+.tbtn svg { width: 55%; height: 55%; }
+.tbtn.pressed { background: rgba(255,176,32,.55); border-color: var(--accent); }
+.tbtn.on { border-color: var(--accent); color: var(--accent); }
+.tbtn.small { position: static; width: auto; height: calc(30px * var(--tscale)); border-radius: 6px; padding: 0 10px; font-size: calc(11px * var(--tscale)); }
+.b-fire { right: calc(118px * var(--tscale)); bottom: calc(96px * var(--tscale)); width: calc(84px * var(--tscale)); height: calc(84px * var(--tscale)); border-color: rgba(255,90,90,.6); }
+.b-fireL { left: calc(22px * var(--tscale)); top: 42%; width: calc(60px * var(--tscale)); height: calc(60px * var(--tscale)); border-color: rgba(255,90,90,.5); }
+.b-ads { right: calc(24px * var(--tscale)); bottom: calc(176px * var(--tscale)); }
+.b-jump { right: calc(24px * var(--tscale)); bottom: calc(96px * var(--tscale)); font-size: calc(10px * var(--tscale)); }
+.b-crouch { right: calc(24px * var(--tscale)); bottom: calc(18px * var(--tscale)); font-size: calc(9px * var(--tscale)); }
+.b-reload { right: calc(214px * var(--tscale)); bottom: calc(48px * var(--tscale)); }
+.b-grenade { right: calc(214px * var(--tscale)); bottom: calc(118px * var(--tscale)); font-size: calc(13px * var(--tscale)); }
+.b-cycle { right: calc(272px * var(--tscale)); bottom: calc(150px * var(--tscale)); width: calc(40px * var(--tscale)); height: calc(40px * var(--tscale)); }
+.b-melee { right: calc(118px * var(--tscale)); bottom: calc(18px * var(--tscale)); width: calc(50px * var(--tscale)); height: calc(50px * var(--tscale)); }
+.b-swap { right: calc(130px * var(--tscale)); bottom: calc(196px * var(--tscale)); width: calc(54px * var(--tscale)); height: calc(40px * var(--tscale)); border-radius: 10px; font-size: calc(11px * var(--tscale)); }
+.b-interact { right: calc(214px * var(--tscale)); bottom: calc(188px * var(--tscale)); width: calc(64px * var(--tscale)); height: calc(64px * var(--tscale)); background: rgba(255,176,32,.45); border-color: var(--accent); font-size: calc(20px * var(--tscale)); }
+.t-top { position: absolute; left: 50%; top: calc(64px * var(--tscale)); transform: translateX(-50%); display: flex; gap: 6px; }
+.t-rotate { display: none; position: absolute; inset: 0; background: rgba(5,8,11,.92); color: #fff; font-size: 18px; place-items: center; text-align: center; padding: 30px; }
+@media (orientation: portrait) { body.touch #touch .t-rotate { display: grid; } }
+
+/* HUD reorganizado para telas de toque */
+body.touch #topLeft { width: 40vw; left: 10px; top: 8px; }
+body.touch #objective { font-size: 13px; }
+body.touch .radio-msg { font-size: 11px; padding: 3px 7px; }
+body.touch #radio { margin-top: 6px; }
+body.touch #compass { display: none; }
+body.touch #topCenter { top: 4px; }
+body.touch #scores { font-size: 15px; }
+body.touch #minimap { width: 104px; height: 104px; }
+body.touch #topRight { right: 8px; top: 6px; }
+body.touch #killfeed .kf { font-size: 11px; }
+body.touch #bottomLeft { left: 50%; transform: translateX(-50%); bottom: 6px; width: 220px; }
+body.touch #stance { display: none; }
+body.touch #bottomRight { right: auto; left: 50%; transform: translateX(-50%); bottom: 34px; text-align: center; }
+body.touch #ammo { font-size: 26px; }
+body.touch #ammo .sep { font-size: 16px; } body.touch #ammo #reserve { font-size: 15px; }
+body.touch #weaponName, body.touch #weaponInfo { font-size: 10px; }
+body.touch #grenades { display: none; }
+body.touch #fps { display: none; }
+body.touch #prompt { bottom: 40%; font-size: 12px; }
+body.touch #toasts { top: 70px; }
+body.touch #shop { z-index: 6; width: min(560px, 94vw); }
+body.touch #scoreboard, body.touch #bigmap { z-index: 4; }

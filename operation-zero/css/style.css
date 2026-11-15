@@ -23,6 +23,7 @@ button { font: inherit; }
 #crosshair .ch { position: absolute; background: #fff; box-shadow: 0 0 2px #000; }
 #crosshair .t, #crosshair .b { width: 2px; height: 9px; left: -1px; }
 #crosshair .l, #crosshair .r { width: 9px; height: 2px; top: -1px; }
+#crosshair.enemy .ch, #crosshair.enemy .dot { background: #ff4a4a; }
 #crosshair .dot { position: absolute; width: 2px; height: 2px; left: -1px; top: -1px; background: #fff; }
 #hitmarker { position: absolute; left: 50%; top: 50%; opacity: 0; }
 #hitmarker i { position: absolute; width: 10px; height: 2px; background: #fff; }
@@ -256,3 +257,54 @@ body.touch #prompt { bottom: 40%; font-size: 12px; }
 body.touch #toasts { top: 70px; }
 body.touch #shop { z-index: 6; width: min(560px, 94vw); }
 body.touch #scoreboard, body.touch #bigmap { z-index: 4; }
+
+/* ---------------- CELULAR: menus compactos ---------------- */
+html, body { overscroll-behavior: none; }
+button, .card, .tab, .mbtn, .sw, select, input { touch-action: manipulation; }
+.side { padding-left: max(40px, env(safe-area-inset-left)); }
+#touch { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+body.touch #topLeft { left: max(10px, env(safe-area-inset-left)); }
+body.touch #topRight { right: max(8px, env(safe-area-inset-right)); }
+body.touch .b-fireL { left: calc(22px * var(--tscale) + env(safe-area-inset-left)); }
+
+/* Telas baixas (celular deitado): menu lateral estreito e rolagem independente */
+@media (max-height: 560px) {
+  #menu { flex-direction: row !important; }
+  .side { width: 200px !important; padding: 12px 10px 12px max(14px, env(safe-area-inset-left)) !important; gap: 2px; overflow-y: auto; flex-shrink: 0; }
+  .logo { font-size: 22px; }
+  .tag { display: none; }
+  .mbtn { font-size: 13px; padding: 7px 10px; letter-spacing: .06em; }
+  .mbtn small { display: none; }
+  .profile-chip { padding: 6px 8px; font-size: 12px; margin-top: 8px; }
+  .profile-chip .lv { font-size: 11px; }
+  .content { padding: 12px 14px 20px !important; overflow-y: auto; max-height: 100vh; -webkit-overflow-scrolling: touch; }
+  .content h2 { font-size: 18px; }
+  .content .sub { font-size: 12px; margin-bottom: 10px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+  .card { padding: 10px; }
+  .card h3 { font-size: 14px; }
+  .card p { font-size: 11px; }
+  .btn { padding: 9px 16px; font-size: 13px; }
+  .li { padding: 6px 10px; }
+  .field { min-width: 130px; }
+  select, input[type=text], input[type=number] { padding: 6px 8px; font-size: 14px; }
+  input[type=range] { width: 160px; }
+  .results-head { font-size: 32px; }
+  .stat { padding: 8px; } .stat b { font-size: 18px; }
+  .mbox { padding: 14px 16px; max-height: 92vh; overflow: auto; }
+  .opts { gap: 8px; margin-top: 10px; }
+  .brief-line { margin: 6px 0; font-size: 13px; }
+  .brief-line .who { width: 80px; font-size: 11px; }
+  .chars { display: none; }
+  #opPreview { width: 180px; height: 240px; }
+  #loading .ltitle { font-size: 20px; }
+}
+/* Telas estreitas (celular em pé): menu empilhado e compacto */
+@media (max-width: 600px) {
+  .side { padding: 14px 16px !important; }
+  .logo { font-size: 26px; }
+  .tag { margin-bottom: 8px; }
+  .mbtn { font-size: 15px; padding: 8px 12px; }
+  .content h2 { font-size: 20px; }
+  .grid { grid-template-columns: 1fr 1fr; }
+}

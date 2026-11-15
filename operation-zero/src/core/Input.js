@@ -18,6 +18,7 @@ export class Input {
     this.mouse = { dx: 0, dy: 0, left: false, right: false, leftPressed: false, wheel: 0 };
     // Estado virtual dos controles de toque (joystick analógico)
     this.touch = { active: false, moveX: 0, moveY: 0 };
+    this.gyro = { yaw: 0, pitch: 0 }; // rotação acumulada do giroscópio (rad)
     this.locked = false;
     this.binds = { ...DEFAULT_BINDS };
     this.enabled = true;

@@ -26,6 +26,15 @@ canvas.addEventListener('click', () => {
 });
 window.__game = game;
 
+// Celular/PWA: libera o áudio no primeiro toque, pausa ao sair do app e registra o service worker.
+addEventListener('pointerdown', () => game.audio.init(), { once: true });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && game.state === 'playing' && !game.testMode) game.pause();
+});
+if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !params.has('test') && !params.has('bench')) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
 // index.html?bench — executa o teste de desempenho e mostra os resultados.
 if (params.has('bench')) {
   import('./core/Benchmark.js').then(async ({ runBenchmark }) => {

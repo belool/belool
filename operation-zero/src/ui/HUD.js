@@ -118,6 +118,7 @@ export class HUD {
     const ch = $('crosshair');
     const showCh = g.settings.crosshair && p.alive && !p.vehicle && p.ads < 0.6 && !p.sprinting;
     ch.style.opacity = showCh ? 1 : 0;
+    ch.classList.toggle('enemy', !!g.assistOn);
     if (showCh) {
       ch.children[0].style.top = `${-px - 9}px`; ch.children[1].style.top = `${px}px`;
       ch.children[2].style.left = `${-px - 9}px`; ch.children[3].style.left = `${px}px`;

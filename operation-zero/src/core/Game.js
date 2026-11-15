@@ -90,7 +90,9 @@ export class Game {
   applySettings() {
     const s = this.settings;
     const q = { low: 0.65, medium: 0.85, high: 1, ultra: 1 }[s.quality] ?? 1;
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, s.quality === 'ultra' ? 2 : 1.25) * s.renderScale * q);
+    this.basePixelRatio = Math.min(devicePixelRatio || 1, s.quality === 'ultra' ? 2 : 1.25) * s.renderScale * q;
+    this.dynScale = this.dynScale ?? 1;
+    this.renderer.setPixelRatio(this.basePixelRatio * (s.dynamicRes ? this.dynScale : 1));
     this.renderer.shadowMap.enabled = s.shadows;
     const res = s.quality === 'low' ? 1024 : s.quality === 'ultra' ? 4096 : s.shadowRes;
     if (this.weather.sun.shadow.mapSize.x !== res) {
@@ -342,8 +344,29 @@ export class Game {
     const w = p.weapon;
     const zoom = lerp(1, w.stats.adsZoom, p.ads);
     const sens = 0.0022 * s.sensitivity * (p.ads > 0.5 ? s.adsSensitivity / Math.sqrt(zoom) : 1);
-    p.yaw -= inp.mouse.dx * sens;
-    p.pitch -= inp.mouse.dy * sens * (s.invertY ? -1 : 1);
+    // Ajuda de mira (toque): desacelera sobre o alvo e puxa levemente a mira
+    const touch = inp.touch.active;
+    const target = touch && (s.aimAssist || s.autoFire) ? this.assistTarget(p, w) : null;
+    this.assistOn = !!target && target.onTarget;
+    let lookK = 1;
+    if (target && s.aimAssist) {
+      if (target.ang < 0.09) lookK = 0.5;
+      const moving = Math.hypot(inp.touch.moveX, inp.touch.moveY) > 0.2 || inp.mouse.left || p.ads > 0.5;
+      if (moving) {
+        const pull = 1.4 * dt * (1 - target.ang / 0.14);
+        let dy = target.yaw - p.yaw; while (dy > Math.PI) dy -= Math.PI * 2; while (dy < -Math.PI) dy += Math.PI * 2;
+        p.yaw += clamp(dy, -pull, pull);
+        p.pitch += clamp(target.pitch - p.pitch, -pull * 0.6, pull * 0.6);
+      }
+    }
+    p.yaw -= inp.mouse.dx * sens * lookK;
+    p.pitch -= inp.mouse.dy * sens * lookK * (s.invertY ? -1 : 1);
+    // giroscópio
+    if (inp.gyro && (inp.gyro.yaw || inp.gyro.pitch)) {
+      const k = (s.gyroSens ?? 1) * (p.ads > 0.5 ? 0.7 : 1) * (s.gyroInvert ? -1 : 1);
+      p.yaw += inp.gyro.yaw * k; p.pitch += inp.gyro.pitch * k;
+      inp.gyro.yaw = inp.gyro.pitch = 0;
+    }
     p.pitch = clamp(p.pitch, -1.5, 1.5);
     it.forward = (inp.down('forward') ? 1 : 0) - (inp.down('back') ? 1 : 0);
     it.right = (inp.down('right') ? 1 : 0) - (inp.down('left') ? 1 : 0);
@@ -361,6 +384,11 @@ export class Game {
     it.fire = inp.mouse.left;
     if (inp.mouse.leftPressed) it.firePressed = true;
     if (!inp.mouse.left && w.stats.mode !== 'burst') it.firePressed = false;
+    // Tiro automático (opcional no celular): dispara quando a mira está sobre um inimigo
+    if (touch && s.autoFire && this.assistOn && !w.isMelee && !p.sprinting) {
+      it.fire = true;
+      if (w.canFire() && w.fireMode !== 'auto') it.firePressed = true;
+    }
     it.ads = inp.mouse.right;
     if (inp.hit('reload')) it.reload = true;
     if (inp.hit('slot1')) it.switchTo = 0;
@@ -376,6 +404,50 @@ export class Game {
     if (inp.hit('flashlight')) this.weather.toggleFlashlight();
     if (inp.hit('interact')) this.mode?.interact?.(p);
     if (inp.hit('order')) this.cycleSquadOrder();
+  }
+
+  // Alvo mais próximo da mira (cone de ~8°) com linha de visão; reavaliado a cada 0,1 s.
+  assistTarget(p, w) {
+    if (this.time - (this._assistT ?? -1) < 0.1 && this._assist !== undefined) {
+      const t = this._assist;
+      if (!t || !t.c.alive) return null;
+      return this.aimInfo(p, t.c, w);
+    }
+    this._assistT = this.time;
+    const eye = p.eyePos(), fwd = p.forward();
+    const maxD = Math.max(50, (w.stats.range || 20) * 2.5);
+    let best = null;
+    for (const c of this.combatants) {
+      if (!c.alive || c === p || c.team === p.team) continue;
+      const to = c.chestPos().sub(eye);
+      const d = to.length();
+      if (d > maxD || d < 0.5) continue;
+      const ang = Math.acos(clamp(to.dot(fwd) / d, -1, 1));
+      if (ang > 0.14) continue;
+      if (!best || ang < best.ang) best = { c, ang };
+    }
+    if (best && !this.world.lineOfSight(eye, best.c.chestPos())) best = null;
+    this._assist = best;
+    return best ? this.aimInfo(p, best.c, w) : null;
+  }
+  aimInfo(p, c, w) {
+    const eye = p.eyePos(), aim = c.chestPos();
+    const dx = aim.x - eye.x, dy = aim.y - eye.y, dz = aim.z - eye.z;
+    const d = Math.hypot(dx, dy, dz);
+    const fwd = p.forward();
+    const ang = Math.acos(clamp((dx * fwd.x + dy * fwd.y + dz * fwd.z) / d, -1, 1));
+    const size = Math.atan(0.32 / d) + (w.stats.cls === 'shotgun' ? 0.05 : 0.008);
+    return { c, ang, yaw: Math.atan2(-dx, -dz), pitch: Math.atan2(dy, Math.hypot(dx, dz)), onTarget: ang < size && d < Math.max(50, (w.stats.range || 20) * 2.5) };
+  }
+
+  // Resolução dinâmica: mantém a fluidez em aparelhos mais fracos.
+  adjustResolution() {
+    const s = this.settings, pf = this.perf;
+    if (!s.dynamicRes || this.testMode || this.state !== 'playing' || !pf.fps) return;
+    const before = this.dynScale;
+    if (pf.fps < 42) this.dynScale = Math.max(0.5, this.dynScale - 0.1);
+    else if (pf.fps > 57) this.dynScale = Math.min(1, this.dynScale + 0.05);
+    if (this.dynScale !== before) { this.renderer.setPixelRatio(this.basePixelRatio * this.dynScale); this.resize(); }
   }
 
   cycleSquadOrder() {
@@ -419,7 +491,7 @@ export class Game {
     const pf = this.perf;
     pf.acc += dt; pf.frames++;
     pf.sim = lerp(pf.sim, t1 - t0, 0.05); pf.render = lerp(pf.render, t2 - t1, 0.05);
-    if (pf.acc >= 0.5) { pf.fps = pf.frames / pf.acc; pf.acc = 0; pf.frames = 0; }
+    if (pf.acc >= 0.5) { pf.fps = pf.frames / pf.acc; pf.acc = 0; pf.frames = 0; if ((this._resT = (this._resT || 0) + 1) % 3 === 0) this.adjustResolution(); }
   }
 
   simulate(dt) {

@@ -14,7 +14,18 @@ npm start            # servidor estático em http://localhost:8080 (Node, sem de
 
 Abra `http://localhost:8080` no Chrome, Edge ou Firefox e clique na tela para capturar o mouse. `Esc` pausa.
 
-**No celular/tablet** os controles de toque ligam sozinhos: joystick flutuante na metade esquerda (empurre até o fim para frente para correr), arraste na metade direita para mirar, dois botões de tiro (o da direita também mira enquanto você arrasta), mira (alterna), pular, agachar, recarregar, granada, faca, troca de arma, interagir (aparece quando há algo para usar) e uma barra com pausa, mapa, placar, lanterna, modo de disparo, ordem ao esquadrão e loja. O jogo entra em tela cheia na horizontal e usa gráficos mais leves na primeira execução. Tamanho, opacidade e sensibilidade ficam em Configurações → Controles.
+**No celular/tablet** os controles de toque ligam sozinhos: joystick flutuante na metade esquerda (empurre até o fim para frente para correr), arraste na metade direita para mirar, dois botões de tiro (o da direita também mira enquanto você arrasta), mira (alterna), pular, agachar, recarregar, granada, faca, troca de arma, interagir (aparece quando há algo para usar) e uma barra com pausa, mapa, placar, lanterna, modo de disparo, ordem ao esquadrão e loja.
+
+Recursos para celular:
+- **Ajuda de mira** (ligada por padrão): desacelera a mira sobre o inimigo e a puxa levemente para ele enquanto você se move ou atira; a mira fica vermelha quando está sobre um alvo.
+- **Tiro automático** (opcional): dispara sozinho quando a mira está sobre um inimigo.
+- **Giroscópio** (opcional): girar o aparelho move a mira, somado ao arraste.
+- **Vibração** em acertos, tiros na cabeça, dano recebido e abates.
+- **Resolução dinâmica**: baixa a resolução quando o FPS cai abaixo de ~42 e sobe de volta quando sobra desempenho; na primeira execução o celular já começa com gráficos mais leves.
+- **Instalável (PWA)**: "Adicionar à tela inicial" abre em tela cheia na horizontal, e o jogo funciona offline depois do primeiro acesso (o online continua precisando do servidor).
+- Menus compactos para tela deitada e empilhados em pé, respeitando o entalhe da tela; pausa automática ao sair do app.
+
+Tudo isso fica em Configurações → Controles (tamanho, opacidade e sensibilidade dos botões e do giroscópio) e → Gráficos (resolução dinâmica). A ajuda de mira, o tiro automático e o layout foram testados em celular emulado; vibração e giroscópio dependem do aparelho e não foram testados em hardware real.
 
 | Ação | Tecla | Ação | Tecla |
 |---|---|---|---|
@@ -116,7 +127,8 @@ operation-zero/
 │   ├── progression/            Progression (XP, níveis, desafios, conquistas, ranking)
 │   └── ui/                     HUD, Menus, TouchControls (celular)
 ├── tests/unit · tests/e2e
-└── tools/serve.mjs              servidor estático + salas WebSocket
+├── manifest.webmanifest · sw.js · icons/   PWA (instalação e modo offline)
+└── tools/serve.mjs              servidor estático + salas WebSocket · tools/gen-sw.mjs (atualiza o cache offline)
 ```
 
 **Para adicionar conteúdo:** uma arma nova é uma entrada em `src/combat/weapons.js`; um mapa novo é uma função em `src/world/maps.js` usando o `MapBuilder`; uma missão nova é um objeto em `src/modes/campaignData.js`; um modo novo é uma subclasse de `Mode` registrada em `src/modes/index.js`.

@@ -451,6 +451,7 @@ export class Menus {
       rng('particles', 0.25, 1.5, 0.05, 'Densidade de partículas', (v) => Math.round(v * 100) + '%'),
       rng('fov', 60, 110, 1, 'Campo de visão (FOV)', (v) => v + '°'),
       rng('fogMul', 0.3, 1.5, 0.05, 'Intensidade da neblina', (v) => Math.round(v * 100) + '%'),
+      chk('dynamicRes', 'Resolução dinâmica (reduz a resolução quando o FPS cai)'),
       chk('showFps', 'Mostrar FPS e métricas'),
       chk('crosshair', 'Mostrar mira'),
     ].join('');
@@ -460,6 +461,12 @@ export class Menus {
     else if (this.setTab === 'controles') body = [
       rng('sensitivity', 0.2, 3, 0.05, 'Sensibilidade do mouse', (v) => Number(v).toFixed(2)), rng('adsSensitivity', 0.2, 1.5, 0.05, 'Sensibilidade mirando', (v) => Number(v).toFixed(2)), chk('invertY', 'Inverter eixo Y'),
       sel('touchControls', 'Controles de toque', [['auto', 'Automático (celular/tablet)'], ['on', 'Sempre ligados'], ['off', 'Desligados']]),
+      chk('aimAssist', 'Ajuda de mira no toque (desacelera e puxa para o alvo)'),
+      chk('autoFire', 'Tiro automático no toque (dispara com a mira sobre o inimigo)'),
+      chk('haptics', 'Vibração (acertos, dano, abates)'),
+      chk('gyro', 'Mirar com giroscópio (girar o aparelho)'),
+      rng('gyroSens', 0.3, 3, 0.05, 'Sensibilidade do giroscópio', (v) => Number(v).toFixed(2)),
+      chk('gyroInvert', 'Inverter giroscópio'),
       rng('touchSens', 0.3, 3, 0.05, 'Sensibilidade do toque (mirar)', (v) => Number(v).toFixed(2)),
       rng('touchScale', 0.7, 1.5, 0.05, 'Tamanho dos botões de toque', (v) => Math.round(v * 100) + '%'),
       rng('touchOpacity', 0.15, 0.9, 0.05, 'Opacidade dos botões de toque', (v) => Math.round(v * 100) + '%'),
@@ -479,6 +486,8 @@ export class Menus {
         const lab = c.querySelector('#v_' + k);
         if (lab) lab.textContent = el.closest('.li').querySelector('span').textContent = formatSetting(k, v);
         if (k === 'timeSpeed' && g.weather) g.weather.timeSpeed = v / 60;
+        if (k === 'gyro') { if (v) g.touch?.enableGyro(true).then((ok) => { if (!ok) { s.gyro = false; el.checked = false; g.saveAll(); } }); else g.touch?.disableGyro(); }
+        if (k === 'dynamicRes') g.dynScale = 1;
         g.touch?.applySettings();
         g.applySettings(); g.resize(); g.saveAll();
       };
@@ -548,7 +557,7 @@ export class Menus {
 
 function pct(v) { return Math.round(v * 100) + '%'; }
 function formatSetting(k, v) {
-  if (k === 'touchSens') return Number(v).toFixed(2);
+  if (k === 'touchSens' || k === 'gyroSens') return Number(v).toFixed(2);
   if (['touchScale', 'touchOpacity', 'master', 'sfx', 'ambient', 'voice', 'renderScale', 'viewDistance', 'particles', 'fogMul'].includes(k)) return Math.round(v * 100) + '%';
   if (k === 'fov') return v + '°';
   if (k === 'timeSpeed') return Number(v) === 0 ? 'parado' : v + 'h/min';
@@ -568,6 +577,7 @@ function upcoming(lv) {
 }
 export function controlsHtml() {
   const rows = [['Mover', 'W A S D'], ['Correr', 'Shift'], ['Agachar (alternar / segurar)', 'C / Ctrl'], ['Pular', 'Espaço'], ['Atirar / Mirar', 'Mouse esq. / dir.'], ['Recarregar', 'R'], ['Trocar arma', '1 / 2 / roda'], ['Modo de disparo', 'B'], ['Granada / trocar tipo', 'G / X'], ['Faca', 'V'], ['Interagir / veículo', 'E'], ['Ordem ao esquadrão', 'Q'], ['Lanterna', 'F'], ['Placar', 'Tab'], ['Mapa', 'M'], ['Loja (Sobrevivência)', 'I'], ['Pausa', 'Esc']];
+  if (document.body.classList.contains('touch')) return '<div class="sub">No celular: joystick à esquerda para andar (empurre até o fim para correr), arraste à direita para mirar (ou gire o aparelho, se ativar o giroscópio), botões de tiro, mira, pular, agachar, recarregar, granada, faca e troca de arma. A mira fica vermelha sobre um inimigo; ajuda de mira, tiro automático, vibração e tamanho dos botões ficam em Configurações → Controles.</div>';
   const touch = '<div class="sub" style="margin-top:12px">No celular: joystick à esquerda para andar (empurre até o fim para correr), arraste à direita para mirar, botões de tiro, mira, pular, agachar, recarregar, granada, faca e troca de arma. Ajuste tamanho e sensibilidade em Configurações → Controles.</div>';
   return touch + `<div class="controls">${rows.map(([a, k]) => `<div><span>${a}</span><span>${k.split(' / ').map((x) => `<kbd>${x}</kbd>`).join(' ')}</span></div>`).join('')}</div>`;
 }

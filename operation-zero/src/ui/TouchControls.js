@@ -64,10 +64,43 @@ export class TouchControls {
     addEventListener('pointerup', (e) => this.up(e));
     addEventListener('pointercancel', (e) => this.up(e));
     game.events.on('frame', () => this.update());
+    // Vibração (resposta tátil)
+    const buzz = (ms) => { if (this.enabled && game.settings.haptics && navigator.vibrate && game.state === 'playing') try { navigator.vibrate(ms); } catch (e) { /* */ } };
+    game.events.on('damage', (e) => { if (e.attacker === game.player && e.victim !== game.player) buzz(e.region === 'head' ? 18 : 8); else if (e.victim === game.player) buzz(Math.min(60, 15 + e.dmg)); });
+    game.events.on('kill', (e) => { if (e.killer === game.player && e.victim !== game.player) buzz([25, 40, 25]); });
+    game.events.on('shot', (e) => { if (e.who === game.player && ['sniper', 'shotgun', 'lmg'].includes(e.weapon.cls)) buzz(12); });
+    // Giroscópio: girar o aparelho move a mira
+    this.onMotion = (ev) => {
+      const r = ev.rotationRate; if (!r) return;
+      const dt = (ev.interval > 1 ? ev.interval / 1000 : ev.interval) || 1 / 60;
+      const angle = (screen.orientation && screen.orientation.angle) ?? window.orientation ?? 0;
+      const D = Math.PI / 180;
+      let yaw, pitch;
+      if (angle === 90) { yaw = (r.beta || 0); pitch = (r.gamma || 0); }
+      else if (angle === 270 || angle === -90) { yaw = -(r.beta || 0); pitch = -(r.gamma || 0); }
+      else { yaw = (r.alpha || 0) * 0 + (r.gamma || 0); pitch = (r.beta || 0); }
+      if (this.game.state !== 'playing') return;
+      this.input.gyro.yaw += yaw * D * dt; this.input.gyro.pitch += pitch * D * dt;
+    };
+    if (game.settings.gyro) this.enableGyro(false);
     game.events.on('matchStart', () => this.reset());
     for (const ev of ['pause', 'matchEnd', 'choice', 'menu']) game.events.on(ev, () => { this.reset(); this.root.classList.add('hidden'); });
     this.applySettings();
   }
+
+  // Liga o giroscópio (no iOS precisa de permissão, pedida a partir de um toque).
+  async enableGyro(ask = true) {
+    try {
+      if (ask && typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) {
+        const r = await DeviceMotionEvent.requestPermission();
+        if (r !== 'granted') return false;
+      }
+      removeEventListener('devicemotion', this.onMotion);
+      addEventListener('devicemotion', this.onMotion);
+      return true;
+    } catch (e) { return false; }
+  }
+  disableGyro() { removeEventListener('devicemotion', this.onMotion); }
 
   get enabled() {
     const m = this.game.settings.touchControls;

@@ -119,6 +119,8 @@ export class Combatant {
       return;
     }
     const it = this.intent;
+    if (this.proxy) return this.updateProxy(dt);
+    if (this.remote) return this.updateRemote(dt);
     if (this.vehicle) {
       this.pos.copy(this.vehicle.pos); this.pos.y += 0.7; this.vel.copy(this.vehicle.vel);
       this.onGround = true;
@@ -134,6 +136,30 @@ export class Combatant {
     if (this.regen && this.game.time - this.lastDamage > 5 && this.health < this.maxHealth) this.health = Math.min(this.maxHealth, this.health + 25 * dt);
     this.updateMovement(dt);
     this.updateWeapon(dt);
+    if (this.model) this.syncModel(dt);
+  }
+
+  // Cliente: representação interpolada de outro combatente (estado vem do anfitrião).
+  updateProxy(dt) {
+    const n = this.net;
+    const k = 1 - Math.exp(-14 * dt);
+    n.pos.addScaledVector(n.vel, dt); // extrapolação leve entre snapshots
+    this.pos.lerp(n.pos, k);
+    let dy = n.yaw - this.yaw; while (dy > Math.PI) dy -= Math.PI * 2; while (dy < -Math.PI) dy += Math.PI * 2;
+    this.yaw += dy * k; this.pitch += (n.pitch - this.pitch) * k;
+    this.height = n.h; this.crouchT = (MOVE.stand - this.height) / (MOVE.stand - MOVE.crouchH);
+    this.vel.copy(n.vel); this.onGround = true;
+    if (!this.alive) this.deadTime += dt;
+    if (this.model) this.syncModel(dt);
+  }
+  // Anfitrião: jogador remoto (posição/mira chegam pela rede; dano e regras ficam aqui).
+  updateRemote(dt) {
+    this.flashed = Math.max(0, this.flashed - dt);
+    this.suppression = Math.max(0, this.suppression - dt * 0.5);
+    this.spawnProtect = Math.max(0, this.spawnProtect - dt);
+    this.meleeTimer -= dt;
+    if (this.regen && this.game.time - this.lastDamage > 5 && this.health < this.maxHealth) this.health = Math.min(this.maxHealth, this.health + 25 * dt);
+    this.crouchT = (MOVE.stand - this.height) / (MOVE.stand - MOVE.crouchH);
     if (this.model) this.syncModel(dt);
   }
 
@@ -289,14 +315,17 @@ export class Combatant {
     // Aim error externo (IA)
     const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
     const up = new THREE.Vector3().crossVectors(right, fwd).normalize();
+    const dirs = [];
     for (let i = 0; i < s.pellets; i++) {
       const r = Math.sqrt(Math.random()) * spread * 0.5, a = Math.random() * Math.PI * 2;
       const d = fwd.clone()
         .addScaledVector(right, Math.cos(a) * Math.tan(r) + this.aimError.x)
         .addScaledVector(up, Math.sin(a) * Math.tan(r) + this.aimError.y)
         .normalize();
+      dirs.push(d);
       this.game.ballistics.fire(this, eye, d, s, { tracer: i === 0 || Math.random() < 0.3, dmgMul: this.dmgBoost || 1 });
     }
+    if (this.game.netClient) this.game.net.localShot(this, eye, dirs, s);
     // Recuo
     const k = (1 - this.ads * 0.25) * (this.crouchT > 0.5 ? 0.82 : 1) * (this.isPlayer ? 1 : 0.4);
     const vk = s.recoil.vert * DEG * k * rand(0.85, 1.15);
@@ -324,6 +353,7 @@ export class Combatant {
     this.meleeTimer = 0.6;
     this.game.audio.play('melee', this.isPlayer ? null : this.pos, 0.7);
     this.game.events.emit('melee', this);
+    if (this.game.netClient) { if (this.isPlayer) this.game.net.send({ k: 'melee', a: [this.yaw, this.pitch] }); return; }
     const eye = this.eyePos(), f = this.forward();
     let best = null, bd = 2.4;
     for (const c of this.game.combatants) {
@@ -349,7 +379,7 @@ export class Combatant {
   }
 
   takeDamage(dmg, info) {
-    if (!this.alive || this.spawnProtect > 0 || this.game.godMode && this.isPlayer) return;
+    if (!this.alive || this.spawnProtect > 0 || this.game.godMode && this.isPlayer || this.game.netClient) return;
     const atk = info.attacker;
     if (atk && atk !== this && atk.team === this.team && !this.game.friendlyFire) return;
     dmg *= this.damageTakenMul;
@@ -390,6 +420,7 @@ export class Combatant {
     for (const w of this.weapons) w.refill();
     if (this.model) { this.model.deathT = -1; this.model.group.rotation.x = 0; this.model.group.visible = true; }
     this.brain?.reset();
+    if (this.remote) this.game.net.queueRespawn(this);
   }
 
   syncModel(dt) {

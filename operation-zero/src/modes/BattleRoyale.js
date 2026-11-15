@@ -81,8 +81,17 @@ export class BattleRoyale extends Mode {
     p.weapons = [];
     p.pos.y = 140; p.parachute = true;
     g.viewmodel.build(p.weapon);
+    // jogadores online: cada um salta de um ponto aleatório, em sua própria equipe
+    const net = g.net;
+    const remotes = net.isHost && this.cfg.online ? net.humansFor(0) : [];
+    remotes.forEach((info) => {
+      const [x, z] = g.nav.randomWalkable() || [0, 0];
+      const c = net.spawnRemote(info, 5000 + info.id, x, z, rand(0, 6), { loadout: { equipment: { frag: 0, smoke: 0, flash: 0 } }, regen: false, y: 140, parachute: true });
+      c.weapons = [];
+    });
+    this.count = Math.max(this.count, remotes.length + 2);
     // bots já em solo (pousaram), cada um em sua própria equipe
-    for (let i = 0; i < this.count - 1; i++) {
+    for (let i = 0; i < this.count - 1 - remotes.length; i++) {
       const pos = g.nav.randomWalkable();
       const armed = Math.random() < 0.12;
       const c = this.spawnBot(10 + i, { pos, loadout: armed ? { primary: { id: pick(['p9', 'vespa', 'r45']) }, equipment: {} } : { equipment: {} }, ai: { noSquad: true } });
@@ -190,6 +199,7 @@ export class BattleRoyale extends Mode {
 
   take(c, it) {
     it.taken = true;
+    if (this.game.net.isHost) this.game.net.queue.push(['lt', this.loot.indexOf(it)]);
     this.game.world.root.remove(it.mesh);
     const g = this.game;
     if (it.type === 'weapon') {
@@ -208,6 +218,7 @@ export class BattleRoyale extends Mode {
     else if (it.type === 'med') c.health = Math.min(c.maxHealth, c.health + 50);
     else if (it.type === 'grenade') c.grenades[it.id] = (c.grenades[it.id] || 0) + 1;
     if (c.isPlayer) { g.audio.play('reload_end', null, 0.6); g.events.emit('toast', { title: 'Item coletado', text: this.lootName(it), small: true }); }
+    if (c.remote) g.net.sendLoadout(c);
   }
   lootName(it) {
     return it.type === 'weapon' ? WEAPONS[it.id].name : it.type === 'ammo' ? 'Munição' : it.type === 'armor' ? `Colete (+${it.amount})` : it.type === 'med' ? 'Kit médico (+50)' : { frag: 'Granada de fragmentação', smoke: 'Granada de fumaça', flash: 'Granada de atordoamento' }[it.id];
@@ -219,23 +230,23 @@ export class BattleRoyale extends Mode {
     item.mesh.position.set(item.x, item.y + 0.4, item.z);
     this.game.world.addVisual(item.mesh);
     this.loot.push(item);
+    if (this.game.net.isHost) this.game.net.queue.push(['la', item.type, item.id || '', Math.round(item.x * 100) / 100, Math.round(item.y * 100) / 100, Math.round(item.z * 100) / 100]);
   }
 
   interact(p) {
     if (p.vehicle) { p.vehicle.exit(p); this.game.viewmodel.build(p.weapon); return; }
     const it = this.nearestLoot(p);
     if (it) { this.take(p, it); return; }
-    const v = this.nearestVehicle(p);
+    const v = p.remote ? null : this.nearestVehicle(p);
     if (v) { v.enter(p); this.game.vehCamYaw = 0; this.game.audio.play('engine', null, 0.6); }
   }
-  prompt() {
-    const p = this.game.player;
+  prompt(p = this.game.player) {
     if (!p?.alive) return null;
     if (p.vehicle) return '[E] Sair do veículo  ·  W/S acelerar  ·  A/D esterçar  ·  Espaço freio';
     if (p.parachute) return 'Paraquedas: use WASD para planar até o solo';
     const it = this.nearestLoot(p);
     if (it) return `[E] Pegar: ${this.lootName(it)}`;
-    if (this.nearestVehicle(p)) return '[E] Dirigir jipe';
+    if (!p.remote && this.nearestVehicle(p)) return '[E] Dirigir jipe';
     return null;
   }
 
@@ -250,10 +261,18 @@ export class BattleRoyale extends Mode {
       this.after(15, () => { if (g.combatants.includes(v)) g.removeCombatant(v); });
     }
     const alive = this.aliveCount();
-    if (v === g.player) {
+    if (v === g.player && alive > 1 && g.combatants.some((c) => c.alive && c.human)) {
+      // online: o anfitrião eliminado continua simulando a partida para os outros
+      this.placement = alive + 1;
+      this.recordBoard(this.placement);
+      g.events.emit('toast', { title: 'ELIMINADO', text: `#${this.placement} — a partida continua para os outros jogadores` });
+    } else if (v === g.player) {
       this.placement = alive + 1;
       this.recordBoard(this.placement);
       this.finish(false, 'ELIMINADO', `Você ficou em #${this.placement} de ${this.count}`, { br: { placement: this.placement } });
+    } else if (alive === 1 && !g.player.alive) {
+      const w = g.combatants.find((c) => c.alive);
+      this.finish(false, 'FIM DA PARTIDA', `${w?.name || '?'} venceu entre ${this.count} combatentes`, { br: { placement: this.placement } });
     } else if (alive === 1 && g.player.alive) {
       this.placement = 1;
       g.profile.stats.brWins++;

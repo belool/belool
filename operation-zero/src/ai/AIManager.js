@@ -100,10 +100,11 @@ export class AIManager {
     }
     this.director.update(dt);
     for (const s of this.squads) s.update(dt);
-    const pp = game.player?.pos;
+    // LOD: distância até o humano mais próximo (jogador local ou remotos)
+    const humans = game.map.large ? game.combatants.filter((c) => (c.isPlayer || c.human) && c.alive) : [];
     for (const b of this.brains) {
       if (!b.c.alive) continue;
-      const far = pp && game.map.large && Math.hypot(b.c.pos.x - pp.x, b.c.pos.z - pp.z) > this.lodDistance;
+      const far = humans.length > 0 && humans.every((h) => Math.hypot(b.c.pos.x - h.pos.x, b.c.pos.z - h.pos.z) > this.lodDistance);
       b.lod = far ? 1 : 0;
       for (const n of this.noises) if (n.t === now || now - n.t < dt * 1.5) b.hear(n);
       b.update(dt);

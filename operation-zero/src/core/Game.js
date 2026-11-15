@@ -18,6 +18,8 @@ import { Viewmodel } from '../entities/Viewmodel.js';
 import { AIManager } from '../ai/AIManager.js';
 import { Progression, XP, rankDelta } from '../progression/Progression.js';
 import { createMode } from '../modes/index.js';
+import { Net } from '../net/Net.js';
+import { ClientMode } from '../modes/ClientMode.js';
 
 // ================================================================
 // GAME — orquestra todos os sistemas: renderização, laço principal,
@@ -56,9 +58,12 @@ export class Game {
     this.progression = new Progression(this.profile, this.events);
     this.combatants = [];
     this.vehicles = [];
+    this.combatantClass = Combatant;
     this.player = null;
     this.mode = null;
     this.world = null;
+    this.net = new Net(this);
+    this.netClient = null;
     this.state = 'menu';
     this.time = 0;
     this.shake = 0;
@@ -180,6 +185,27 @@ export class Game {
     if (!this.testMode) this.input.lock();
   }
 
+  // Cliente online: carrega o mesmo mapa (mesma semente) e cria o jogador local.
+  startClientMatch(cfg, you, ents, extra) {
+    this.audio.init();
+    this.audio.stopVoices();
+    this.cfg = cfg;
+    this.loadMap(cfg.map, cfg.seed ?? 1337);
+    this.weather.set(cfg.weather ?? this.map.defaults.weather, cfg.time ?? this.map.defaults.time);
+    this.weather.timeSpeed = (cfg.timeSpeed ?? this.settings.timeSpeed) / 60;
+    this.time = 0;
+    this.mode = new ClientMode(this, cfg, extra);
+    const p = this.createPlayer(you.team, you.x, you.z, you.yaw, { regen: false, loadout: { equipment: {} } });
+    p.pos.y = you.y || 0; p.parachute = !!you.parachute;
+    this.mode.setup(ents, you);
+    this.mode.applyLoadout(you.loadout);
+    this.state = 'playing';
+    this.matchStart = performance.now();
+    this.progression.matchXp = 0;
+    this.events.emit('matchStart', cfg);
+    if (!this.testMode) this.input.lock();
+  }
+
   createPlayer(team, x, z, yaw = 0, extra = {}) {
     const p = new Combatant(this, { isPlayer: true, team, x, z, yaw, name: this.profile.operator.callsign || 'Você', loadout: extra.loadout || this.profile.loadout, health: extra.health ?? 100, armor: extra.armor ?? 0, regen: extra.regen ?? true });
     this.player = p;
@@ -205,6 +231,8 @@ export class Game {
     const radius = o.radius ?? 7, damage = o.damage ?? 120;
     this.fx.explosion(pos, radius);
     this.audio.play('explosion', pos, 1);
+    if (this.netClient) return; // no cliente, explosões são só visuais (o anfitrião aplica o dano)
+    if (this.net.isHost) this.net.queueBoom(pos, radius);
     this.ai.noise(pos, 160, 'explosion', o.attacker);
     const tmp = new THREE.Vector3();
     const origin = pos.clone(); origin.y += 0.4;
@@ -277,6 +305,8 @@ export class Game {
   pause() { if (this.state !== 'playing') return; this.state = 'paused'; this.events.emit('pause'); }
   resume() { if (this.state !== 'paused') return; this.state = 'playing'; this.input.lock(); this.events.emit('resume'); this.last = performance.now(); }
   quitToMenu() {
+    if (this.net.isHost && this.net.lobby.inMatch) { this.net.to('all', { k: 'abort' }); this.net.lobby.inMatch = false; this.net.broadcastLobby(); }
+    this.netClient = null;
     this.unloadMap();
     this.state = 'menu';
     this.input.unlock();
@@ -397,15 +427,16 @@ export class Game {
     if (this.manualFrames) this.audio.beginFrame();
     this.updatePlayer(dt);
     this.mode.update(dt);
-    this.ai.update(dt);
+    if (!this.netClient) this.ai.update(dt);
     for (const c of this.combatants) c.update(dt);
-    for (const v of this.vehicles) v.update(dt);
+    if (!this.netClient) for (const v of this.vehicles) v.update(dt);
     this.ballistics.update(dt);
     this.throwables.update(dt);
     this.fx.update(dt);
     this.updateCamera(dt);
     this.weather.update(dt, this.camera.position);
     this.viewmodel.update(dt, this.player, this.input.mouse.dx, this.input.mouse.dy);
+    if (this.netClient) this.net.clientTick(dt); else this.net.hostTick(dt);
     // culling de modelos distantes
     const cp = this.camera.position;
     const maxD = this.map.large ? 260 : 400;

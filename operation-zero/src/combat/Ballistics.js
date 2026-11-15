@@ -19,7 +19,10 @@ export class Ballistics {
   clear() { this.list.length = 0; }
 
   fire(shooter, origin, dir, stats, opts = {}) {
+    const cosmetic = !!opts.cosmetic || !!this.game.netClient;
+    if (this.game.net?.isHost && !cosmetic) this.game.net.queueShot(shooter, origin, dir, stats);
     this.list.push({
+      cosmetic,
       shooter, team: shooter?.team,
       pos: origin.clone(), vel: dir.clone().multiplyScalar(stats.velocity),
       start: origin.clone(),
@@ -66,7 +69,7 @@ export class Ballistics {
       const perp = Math.abs(dx * d.z - dz * d.x);
       if (perp > 2.5) continue;
       // near-miss: projétil passando perto de um inimigo -> supressão
-      if (c.team !== p.team && perp < 2.2 && !p.nearSet.has(c)) { p.nearSet.add(c); c.onNearMiss?.(p.shooter, o); }
+      if (!p.cosmetic && c.team !== p.team && perp < 2.2 && !p.nearSet.has(c)) { p.nearSet.add(c); c.onNearMiss?.(p.shooter, o); }
       const hb = c.hitboxes();
       let best = null;
       for (const h of hb) {
@@ -84,6 +87,7 @@ export class Ballistics {
       if (h.combatant) {
         const c = h.combatant;
         p.hitSet.add(c);
+        if (p.cosmetic) { game.fx.blood(point, d, 1); return false; }
         const ratio = Math.max(0.25, p.power / p.power0);
         const base = damageAtRange(p.stats, dist) * ratio * p.dmgMul;
         const dmg = regionDamage(p.stats, base, h.region);
@@ -99,11 +103,11 @@ export class Ballistics {
       if (h.axis >= 0) normal.setComponent(h.axis, h.sign); else normal.copy(d).negate();
       const thickness = Math.min(h.tExit, 50) - h.t;
       const cost = penetrationCost(h.mat, thickness);
-      if (h.box) game.world.damageBox(h.box, damageAtRange(p.stats, dist) * 0.6, false, point, p.shooter);
+      if (h.box && !p.cosmetic) game.world.damageBox(h.box, damageAtRange(p.stats, dist) * 0.6, false, point, p.shooter);
       game.fx.impact(point, normal, h.mat);
       if (game.audio.far(point) < 50) game.audio.impact(h.mat, point);
       // Ruído de impacto atrai atenção da IA próxima
-      if (Math.random() < 0.3) game.ai?.noise(point, 10, 'impact', p.shooter);
+      if (!p.cosmetic && Math.random() < 0.3) game.ai?.noise(point, 10, 'impact', p.shooter);
       if (h.ground || cost > p.power) {
         // ricochete raro em ângulo raso
         const cosA = Math.abs(d.dot(normal));

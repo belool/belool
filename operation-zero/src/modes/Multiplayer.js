@@ -15,9 +15,20 @@ function scoreKill(mode, e) {
 // Gera combatentes de ambas as equipes e organiza esquadrões.
 function populate(mode, teamSize) {
   const g = mode.game;
-  mode.setupPlayer(0);
-  for (let i = 0; i < teamSize - 1; i++) mode.spawnBot(0, { ai: { follow: i < 2, followIdx: i } });
-  for (let i = 0; i < teamSize; i++) mode.spawnBot(1);
+  const net = g.net;
+  const online = net.isHost && mode.cfg.online;
+  const hostTeam = online ? net.hostTeam() : 0;
+  mode.setupPlayer(hostTeam);
+  const humans = { 0: hostTeam === 0 ? 1 : 0, 1: hostTeam === 1 ? 1 : 0 };
+  if (online) for (const t of [0, 1]) for (const info of net.humansFor(t)) {
+    const [x, z] = mode.spawnPoint(t);
+    net.spawnRemote(info, t, x, z, mode.facingCenter(x, z));
+    humans[t]++;
+  }
+  // bots completam as equipes
+  let follow = 0;
+  for (let i = humans[hostTeam]; i < teamSize; i++) mode.spawnBot(hostTeam, { ai: { follow: follow < 2, followIdx: follow++ } });
+  for (let i = humans[1 - hostTeam]; i < teamSize; i++) mode.spawnBot(1 - hostTeam);
   g.ai.formSquads(teamSize > 6 ? 4 : 3);
   // os dois primeiros aliados formam o esquadrão do jogador (sem squad do bot)
 }

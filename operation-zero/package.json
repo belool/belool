@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node tools/serve.mjs 8080",
     "test": "node --test tests/unit/*.test.mjs",
-    "e2e": "node tests/e2e/smoke.mjs",
+    "e2e": "node tests/e2e/smoke.mjs && node tests/e2e/online.mjs",
+    "e2e:online": "node tests/e2e/online.mjs",
     "bench": "node tests/e2e/smoke.mjs --bench-only"
   },
   "devDependencies": {

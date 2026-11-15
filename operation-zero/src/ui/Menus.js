@@ -8,6 +8,7 @@ import { levelFromXp, xpForLevel, rankOf, RANKS, ACHIEVEMENTS, MAX_LEVEL } from 
 import { DEFAULT_SETTINGS, Save, defaultProfile } from '../core/Save.js';
 import { SoldierModel } from '../entities/SoldierModel.js';
 import { esc, fmtTime } from './HUD.js';
+import { ONLINE_MODES } from '../net/Net.js';
 
 // ================================================================
 // MENUS — menu principal, campanha (briefing), multijogador, BR,
@@ -33,7 +34,13 @@ export class Menus {
     game.events.on('resume', () => this.hide());
     game.events.on('matchEnd', (r) => this.showResults(r));
     game.events.on('choice', (c) => this.showChoice(c));
-    game.events.on('menu', () => this.showHome());
+    game.events.on('menu', () => this.showHome(game.net.role ? 'online' : this.screen === 'online' ? 'home' : this.screen));
+    const net = game.net;
+    const rerender = () => { if (game.state === 'menu' && this.screen === 'online' && !this.el.classList.contains('hidden')) this.renderOnline($('mcontent')); };
+    net.ev.on('lobby', rerender);
+    net.ev.on('closed', () => { this.onlineMsg = 'Conexão com o servidor perdida.'; rerender(); });
+    net.ev.on('hostLeft', () => { this.onlineMsg = 'O anfitrião encerrou a sala.'; if (game.state === 'menu') this.showHome('online'); });
+    net.ev.on('starting', () => { $('modal').classList.add('hidden'); this.hide(); this.hud.show(true); });
     addEventListener('keydown', (e) => {
       if (e.code === 'Escape' && game.state === 'paused' && !this.el.classList.contains('hidden')) { /* fica no pause */ }
     });
@@ -53,6 +60,7 @@ export class Menus {
       ['campaign', 'Campanha', 'História · 4 operações'],
       ['multiplayer', 'Multijogador', '5v5 · 10v10 · Dominação · Captura'],
       ['br', 'Battle Royale', 'Até 100 combatentes'],
+      ['online', 'Online', 'Jogue com amigos'],
       ['survival', 'Sobrevivência', 'Ondas infinitas'],
       ['arsenal', 'Arsenal', 'Armas · acessórios · camuflagens'],
       ['operator', 'Operador', 'Personalização'],
@@ -74,7 +82,7 @@ export class Menus {
     this.el.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { g.audio.init(); g.audio.play('ui'); this.showHome(b.dataset.go); });
     this.stopPreview();
     const c = $('mcontent');
-    const fn = { home: this.renderWelcome, campaign: this.renderCampaign, multiplayer: this.renderMP, br: this.renderBR, survival: this.renderSurvival, arsenal: this.renderArsenal, operator: this.renderOperator, progress: this.renderProgress, settings: this.renderSettings }[screen] || this.renderWelcome;
+    const fn = { online: this.renderOnline, home: this.renderWelcome, campaign: this.renderCampaign, multiplayer: this.renderMP, br: this.renderBR, survival: this.renderSurvival, arsenal: this.renderArsenal, operator: this.renderOperator, progress: this.renderProgress, settings: this.renderSettings }[screen] || this.renderWelcome;
     fn.call(this, c);
   }
 
@@ -221,6 +229,69 @@ export class Menus {
       }
       $('loading').classList.add('hidden');
     }, 60);
+  }
+
+  // ------------------------------------------------------------ online
+  renderOnline(c) {
+    const g = this.game, net = g.net, L = net.lobby;
+    const msg = this.onlineMsg ? `<div class="toast small" style="margin:0 0 14px;text-align:left">${esc(this.onlineMsg)}</div>` : '';
+    if (!net.role) {
+      c.innerHTML = `<h2>Online</h2>
+        <div class="sub">Jogue com amigos em mata-mata, dominação, captura, sobrevivência cooperativa ou Battle Royale. Vagas livres são preenchidas por bots. Quem cria a sala é o anfitrião: o computador dele simula a partida.</div>${msg}
+        <div class="row"><div class="field"><label>Seu nome</label><input type="text" id="onName" maxlength="16" value="${esc(g.profile.operator.callsign)}"></div></div>
+        <div class="row" style="margin-top:14px"><button class="btn" id="onHost">Criar sala</button></div>
+        <div class="row" style="margin-top:18px"><div class="field"><label>Código da sala</label><input type="text" id="onCode" maxlength="5" placeholder="ABCDE" style="text-transform:uppercase;letter-spacing:.3em;width:160px"></div><button class="btn ghost" id="onJoin" style="align-self:flex-end">Entrar</button></div>
+        <div class="sub" style="margin-top:24px">O modo online precisa do servidor do jogo: rode <kbd>npm start</kbd> na pasta <b>operation-zero</b> e abra o endereço que ele mostrar. Amigos na mesma rede usam o endereço "Na rede local"; pela internet, publique o servidor (porta 8080) ou use um túnel.</div>`;
+      const name = () => { const v = $('onName').value.trim().slice(0, 16) || 'Operador'; g.profile.operator.callsign = v; g.saveAll(); return v; };
+      $('onHost').onclick = async () => {
+        this.onlineMsg = '';
+        try { await net.hostRoom(name()); this.renderOnline(c); }
+        catch (e) { this.onlineMsg = 'Não foi possível criar a sala: ' + e.message + '. Abra o jogo pelo servidor (npm start).'; this.renderOnline(c); }
+      };
+      $('onJoin').onclick = async () => {
+        this.onlineMsg = '';
+        const code = $('onCode').value.trim().toUpperCase();
+        if (code.length < 5) { this.onlineMsg = 'Digite o código de 5 letras.'; return this.renderOnline(c); }
+        try { await net.joinRoom(code, name()); this.renderOnline(c); }
+        catch (e) { this.onlineMsg = 'Não foi possível entrar: ' + e.message; this.renderOnline(c); }
+      };
+      return;
+    }
+    const host = net.isHost;
+    const players = L.players || [];
+    const M = ONLINE_MODES[L.modeKey] || ONLINE_MODES.tdm5;
+    const teamMode = ['tdm', 'domination', 'capture'].includes(M.cfg.mode);
+    const row = (p) => `<div class="li"><div><b>${esc(p.name)}</b>${p.host ? ' <span class="d">(anfitrião)</span>' : ''}${p.id === net.id ? ' <span class="d">(você)</span>' : ''}</div>${teamMode ? `<div class="row"><span style="color:${p.team === 0 ? 'var(--ally)' : 'var(--enemy)'}">${p.team === 0 ? 'Força Zero' : 'Legião Krane'}</span>${host ? `<button class="btn ghost" data-swap="${p.id}" style="padding:4px 10px">trocar</button>` : ''}</div>` : ''}</div>`;
+    const opts = host ? `<div class="row">
+        <div class="field"><label>Modo</label><select id="lbMode">${Object.entries(ONLINE_MODES).map(([k, m]) => `<option value="${k}" ${L.modeKey === k ? 'selected' : ''}>${m.name}</option>`).join('')}</select></div>
+        ${M.cfg.mode !== 'br' ? `<div class="field"><label>Mapa</label><select id="lbMap">${MAP_LIST.map((k) => `<option value="${k}" ${L.map === k ? 'selected' : ''}>${MAPS[k].name}</option>`).join('')}</select></div>` : ''}
+        <div class="field"><label>Horário</label><select id="lbTime">${[6, 10, 14, 18, 22].map((h) => `<option value="${h}" ${L.time === h ? 'selected' : ''}>${h}h</option>`).join('')}</select></div>
+        <div class="field"><label>Clima</label><select id="lbWeather">${Object.entries(WEATHER_TYPES).map(([k, w]) => `<option value="${k}" ${L.weather === k ? 'selected' : ''}>${w.name}</option>`).join('')}</select></div>
+        <div class="field"><label>Bots</label><select id="lbDiff">${Object.entries(DIFFICULTY).map(([k, d]) => `<option value="${k}" ${L.difficulty === k ? 'selected' : ''}>${d.name}</option>`).join('')}</select></div>
+      </div>` : `<div class="sub">${esc(M.name)} · ${M.cfg.mode === 'br' ? 'Ilha Zero' : esc(MAPS[L.map]?.name || '')} · ${L.time}h · ${esc(WEATHER_TYPES[L.weather]?.name || '')}</div>`;
+    c.innerHTML = `<h2>Sala ${esc(net.code)}</h2>
+      <div class="sub">${host ? 'Passe o código para seus amigos. Eles abrem o mesmo endereço, vão em Online e digitam o código.' : L.inMatch ? 'Partida em andamento — você entra na próxima.' : 'Aguardando o anfitrião iniciar a partida…'}</div>${msg}
+      <div style="font-size:48px;font-weight:900;letter-spacing:.3em;color:var(--accent);margin:4px 0 16px">${esc(net.code)}</div>
+      <div class="list" style="max-width:640px">${players.map(row).join('')}</div>
+      <div style="margin-top:16px">${opts}</div>
+      <div class="row" style="margin-top:16px">${host ? `<button class="btn" id="lbStart" ${L.inMatch ? 'disabled' : ''}>Iniciar partida</button>` : ''}<button class="btn ghost" id="lbLeave">Sair da sala</button><span class="d" style="color:var(--dim)">${net.ping ? `ping ${Math.round(net.ping)} ms` : ''}</span></div>`;
+    $('lbLeave').onclick = () => { net.leave(); this.onlineMsg = ''; this.renderOnline(c); };
+    if (!host) return;
+    c.querySelectorAll('[data-swap]').forEach((b) => b.onclick = () => net.swapTeam(Number(b.dataset.swap)));
+    $('lbMode').onchange = (e) => net.setLobby({ modeKey: e.target.value });
+    if ($('lbMap')) $('lbMap').onchange = (e) => net.setLobby({ map: e.target.value });
+    $('lbTime').onchange = (e) => net.setLobby({ time: Number(e.target.value) });
+    $('lbWeather').onchange = (e) => net.setLobby({ weather: e.target.value });
+    $('lbDiff').onchange = (e) => net.setLobby({ difficulty: e.target.value });
+    $('lbStart').onclick = () => {
+      g.audio.init();
+      $('loading').classList.remove('hidden');
+      setTimeout(() => {
+        try { net.startHostMatch(); this.hide(); this.hud.show(true); }
+        catch (e) { console.error(e); alert('Erro ao iniciar: ' + e.message); g.quitToMenu(); }
+        $('loading').classList.add('hidden');
+      }, 60);
+    };
   }
 
   // ------------------------------------------------------------ arsenal
@@ -447,7 +518,8 @@ export class Menus {
     const btns = [];
     if (camp?.retry) btns.push(['retry', 'Tentar novamente do checkpoint']);
     if (camp?.next) btns.push(['next', `Próxima missão: ${MISSIONS[camp.next].name}`]);
-    if (!camp) btns.push(['again', 'Jogar novamente']);
+    if (r.net || (this.game.net.isHost && this.game.cfg?.online)) btns.push(['lobby', 'Voltar à sala']);
+    else if (!camp) btns.push(['again', 'Jogar novamente']);
     btns.push(['menu', 'Menu principal']);
     this.el.innerHTML = `<div class="content" style="max-width:900px;margin:0 auto">
       <div class="results-head ${r.won ? 'win' : 'lose'}">${esc(r.title)}</div>
@@ -457,7 +529,8 @@ export class Menus {
       <div class="row" style="margin-top:22px">${btns.map(([k, t], i) => `<button class="btn ${i ? 'ghost' : ''}" data-r="${k}">${esc(t)}</button>`).join('')}</div></div>`;
     this.el.querySelectorAll('[data-r]').forEach((b) => b.onclick = () => {
       const k = b.dataset.r;
-      if (k === 'menu') g.quitToMenu();
+      if (k === 'menu') { if (g.net.role) g.net.leave(); g.quitToMenu(); }
+      else if (k === 'lobby') { g.quitToMenu(); this.showHome('online'); }
       else if (k === 'again') this.launch({ ...this.lastCfg, seed: this.lastCfg.mode === 'br' ? Math.floor(Math.random() * 1e6) : this.lastCfg.seed });
       else if (k === 'retry') { const m = MISSIONS[camp.retry.mission]; this.launch({ mode: 'campaign', mission: m.id, checkpoint: camp.retry.checkpoint, map: m.map, time: m.time, weather: m.weather, timeSpeed: 0, difficulty: g.settings.difficulty }); }
       else if (k === 'next') { g.quitToMenu(); this.showHome('campaign'); this.showBriefing(camp.next, 0); }

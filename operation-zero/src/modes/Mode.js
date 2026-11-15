@@ -118,7 +118,7 @@ export class Mode {
   markers() { return []; }
   hud() { return { title: this.title, objective: this.objective, scores: this.teamBased ? this.scores : null, time: this.timeLeft }; }
   scoreboard() {
-    const rows = this.game.combatants.map((c) => ({ name: c.name, team: c.team, k: c.stats.kills, d: c.stats.deaths, a: c.stats.assists, s: c.stats.score, me: c.isPlayer, alive: c.alive }));
+    const rows = this.game.combatants.map((c) => ({ id: c.id, name: c.name, team: c.team, k: c.stats.kills, d: c.stats.deaths, a: c.stats.assists, s: c.stats.score, me: c.isPlayer, alive: c.alive }));
     return rows.sort((a, b) => b.s - a.s || b.k - a.k);
   }
   finish(won, title, text, extra = {}) {

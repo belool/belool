@@ -2,7 +2,7 @@
 
 FPS tático em primeira pessoa que roda no navegador (WebGL + Three.js), sem instalação e sem assets externos: geometria, texturas, animações e sons são todos gerados por código.
 
-**Modos:** Campanha (4 missões com escolhas que ramificam a história) · Mata-mata 5v5 e 10v10 · Dominação · Captura de objetivos · Sobrevivência por ondas · Battle Royale com até 100 combatentes.
+**Modos:** Campanha (4 missões com escolhas que ramificam a história) · Mata-mata 5v5 e 10v10 · Dominação · Captura de objetivos · Sobrevivência por ondas · Battle Royale com até 100 combatentes · **Online com amigos** (todos os modos, menos a campanha).
 
 ## Como jogar
 
@@ -26,6 +26,18 @@ Abra `http://localhost:8080` no Chrome, Edge ou Firefox e clique na tela para ca
 | Recarregar | R | Placar | Tab |
 | Trocar arma | 1 / 2 / roda | Mapa grande | M |
 | Modo de disparo | B | Loja (Sobrevivência) | I |
+
+## Jogar online com amigos
+
+1. Uma pessoa roda `npm start` (o servidor mostra o endereço local e o da rede, ex.: `http://192.168.0.10:8080`).
+2. Todos abrem esse endereço e vão em **Online**. O anfitrião clica em **Criar sala** e passa o código de 5 letras; os outros digitam o código e clicam em **Entrar**.
+3. No saguão, o anfitrião escolhe modo, mapa, horário, clima e dificuldade dos bots, e pode trocar jogadores de equipe. **Iniciar partida** leva todos juntos; vagas livres viram bots.
+
+Como funciona: o navegador do anfitrião simula a partida (IA, dano, regras). Cada cliente move e mira localmente, sem atraso, e envia posição, disparos, granadas e ações; o anfitrião confirma acertos e envia o estado do mundo 20 vezes por segundo (10 no Battle Royale grande). Quem cai da partida vira bot; se o anfitrião sai, os clientes voltam ao menu. O servidor (`tools/serve.mjs`, sem dependências) só cria salas e repassa mensagens por WebSocket.
+
+Pela internet é preciso expor a porta 8080 (redirecionamento no roteador, um servidor na nuvem ou um túnel). A versão publicada como página estática não tem o servidor, então ali o modo online não conecta.
+
+Limites: o anfitrião confia na posição enviada pelos clientes (não há antitrapaça), não há entrada no meio da partida (quem chega espera a próxima) e a campanha é só para um jogador.
 
 ## Sobre o Unreal Engine 5
 
@@ -62,7 +74,7 @@ A especificação priorizava UE5 + C++/Blueprints. Este protótipo foi feito em 
 
 ## Limites atuais (honestamente)
 
-- **Multijogador online não existe ainda**: os modos multijogador são contra bots. A simulação já separa controle (intenções) de execução, o que é a base de um servidor autoritativo, mas não há camada de rede.
+- **Online exige o servidor do jogo** (`npm start`); não há antitrapaça nem entrada no meio da partida, e a campanha não é cooperativa.
 - Modelos são low-poly procedurais com animação procedural — não há personagens esculpidos, captura de movimento nem animações esqueléticas.
 - O terreno é plano (com aterros e túneis cobertos); não há subsolo com múltiplos níveis para a IA. Os bots navegam só no térreo; o jogador pode subir em telhados, segundos andares e torres.
 - Veículos apenas no Battle Royale; bots não dirigem.
@@ -71,7 +83,7 @@ A especificação priorizava UE5 + C++/Blueprints. Este protótipo foi feito em 
 
 ```bash
 npm test         # 13 testes unitários (balística, armas, navegação A*, progressão)
-npm run e2e      # Playwright: menus, todos os modos, campanha nos dois ramos e benchmark
+npm run e2e      # Playwright: menus, todos os modos, campanha nos dois ramos, benchmark e online (2 navegadores)
 ```
 
 O benchmark também roda no navegador em `index.html?bench`. Medição no Chromium headless (simulação = IA + física + balística, sem renderização):
@@ -99,11 +111,12 @@ operation-zero/
 │   ├── combat/                 weapons (dados), WeaponInstance, Ballistics, Throwables
 │   ├── entities/               Combatant, SoldierModel, Viewmodel, Vehicle
 │   ├── ai/                     AIManager, AIBrain, Squad, Director
-│   ├── modes/                  Mode, Multiplayer (TDM/Dominação/Captura), Survival, BattleRoyale, Campaign, campaignData
+│   ├── net/                    Net (anfitrião/cliente, snapshots, saguão)
+│   ├── modes/                  Mode, Multiplayer (TDM/Dominação/Captura), Survival, BattleRoyale, Campaign, campaignData, ClientMode (online)
 │   ├── progression/            Progression (XP, níveis, desafios, conquistas, ranking)
 │   └── ui/                     HUD, Menus, TouchControls (celular)
 ├── tests/unit · tests/e2e
-└── tools/serve.mjs
+└── tools/serve.mjs              servidor estático + salas WebSocket
 ```
 
 **Para adicionar conteúdo:** uma arma nova é uma entrada em `src/combat/weapons.js`; um mapa novo é uma função em `src/world/maps.js` usando o `MapBuilder`; uma missão nova é um objeto em `src/modes/campaignData.js`; um modo novo é uma subclasse de `Mode` registrada em `src/modes/index.js`.

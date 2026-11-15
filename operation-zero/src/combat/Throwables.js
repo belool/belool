@@ -26,6 +26,12 @@ export class Throwables {
   }
 
   throw(thrower, type, origin, dir, power = 18) {
+    if (this.game.netClient && thrower?.isPlayer) {
+      // cliente online: o anfitrião cria a granada real
+      this.game.net.send({ k: 'throw', ty: type, o: [origin.x, origin.y, origin.z], d: [dir.x, dir.y, dir.z] });
+      this.game.audio.play('pin', null, 0.6);
+      return null;
+    }
     const mesh = new THREE.Mesh(this.geo, this.mats[type] || this.mats.frag);
     mesh.castShadow = true;
     mesh.position.copy(origin);

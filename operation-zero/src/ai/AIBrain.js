@@ -100,7 +100,7 @@ export class AIBrain {
       // pontuação: perto, ameaçando, jogador tem leve prioridade
       let score = -d;
       if (e === this.target) score += 15;
-      if (e.isPlayer) score += 6;
+      if (e.isPlayer || e.human) score += 6;
       if (game.time - e.lastShot < 2) score += 8;
       if (score > bestScore) { bestScore = score; best = e; }
     }
@@ -573,7 +573,7 @@ export class AIBrain {
     if (this.abstractT <= 0) {
       this.abstractT = 1.5;
       for (const e of game.combatants) {
-        if (!this.isEnemy(e) || e.isPlayer) continue;
+        if (!this.isEnemy(e) || e.isPlayer || e.human) continue;
         const d = e.pos.distanceTo(c.pos);
         if (d > 30) continue;
         const w = c.weapon;

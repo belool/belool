@@ -46,7 +46,15 @@ export class Survival extends Mode {
     const c = P.B || [0, 0];
     this.center = c;
     this.setupPlayer(0, { pos: this.game.nav.center(...this.game.nav.nearestWalkable(c[0], c[1])), regen: true });
+    // cooperativo online: os outros jogadores entram na mesma equipe
+    const net = this.game.net;
+    if (net.isHost && this.cfg.online) net.humansFor(0).forEach((info, i) => {
+      const q = this.game.nav.nearestWalkable(c[0] + 2 + i * 1.5, c[1] + 2, 8);
+      const [x, z] = this.game.nav.center(q[0], q[1]);
+      net.spawnRemote(info, 0, x, z, 0);
+    });
   }
+  get humans() { return this.game.combatants.filter((c) => c.isPlayer || c.human); }
   get enemiesAlive() { return this.game.combatants.filter((c) => c.alive && c.team === 1).length; }
 
   startWave() {
@@ -102,7 +110,12 @@ export class Survival extends Mode {
     this.huntT = (this.huntT ?? 0) - dt;
     if (this.huntT <= 0) {
       this.huntT = 4;
-      for (const s of g.ai.squads) if (s.team === 1) s.goal = { x: p.pos.x + rand(-6, 6), z: p.pos.z + rand(-6, 6), type: 'attack', radius: 8 };
+      const alive = this.humans.filter((h) => h.alive);
+      for (const s of g.ai.squads) {
+        if (s.team !== 1) continue;
+        const t = alive[Math.floor(Math.random() * alive.length)] || p;
+        s.goal = { x: t.pos.x + rand(-6, 6), z: t.pos.z + rand(-6, 6), type: 'attack', radius: 8 };
+      }
     }
     if (this.toSpawn <= 0 && this.enemiesAlive === 0) {
       this.inBreak = true;
@@ -112,18 +125,27 @@ export class Survival extends Mode {
       g.progression.record({ type: 'wave' });
       g.events.emit('toast', { title: `Onda ${this.wave} superada!`, text: `+${bonus} pontos` });
       p.weapons.forEach((w) => w.addAmmo(2));
+      // quem caiu volta no intervalo; jogadores remotos recebem munição
+      for (const h of this.humans) {
+        if (!h.alive) { const q = g.nav.nearestWalkable(this.center[0] + rand(-3, 3), this.center[1] + rand(-3, 3), 8); const [x, z] = g.nav.center(q[0], q[1]); h.respawn(x, z, 0); if (h.isPlayer) g.viewmodel.build(h.weapon); }
+        else if (h.remote) { h.weapons.forEach((w) => w.addAmmo(2)); g.net.sendLoadout(h); }
+      }
     }
   }
   onKill(e) {
     const g = this.game;
-    if (e.victim === g.player) {
+    if (e.victim.isPlayer || e.victim.human) {
+      if (this.humans.some((h) => h.alive)) {
+        if (e.victim.isPlayer) g.events.emit('toast', { title: 'Você caiu', text: 'Volta no próximo intervalo se a equipe sobreviver', small: true });
+        return;
+      }
       this.finish(false, 'FIM DE JOGO', `Você sobreviveu a ${Math.max(0, this.wave - 1)} ondas — ${this.score} pontos`, { survival: { wave: this.wave, score: this.score } });
       this.recordBoard();
       return;
     }
     if (e.victim.team === 1 && e.killer && e.killer.team === 0) {
       const pts = (e.victim.isBoss ? 1000 : 100) + (e.headshot ? 50 : 0) + (e.melee ? 100 : 0);
-      if (e.killer.isPlayer) { this.points += pts; this.score += pts; e.killer.stats.score += pts; }
+      if (e.killer.isPlayer || e.killer.human) { this.points += pts; this.score += pts; e.killer.stats.score += pts; }
     }
     if (e.victim.team === 0 && !e.victim.isPlayer) this.after(8, () => { if (this.game.combatants.includes(e.victim)) this.game.removeCombatant(e.victim); });
   }
@@ -135,9 +157,10 @@ export class Survival extends Mode {
     b.sort((a, c) => c.score - a.score);
     b.length = Math.min(b.length, 10);
   }
-  buy(id) {
+  buy(id, buyer = this.game.player) {
     const item = SHOP.find((s) => s.id === id);
-    const p = this.game.player;
+    const p = buyer;
+    if (!this.inBreak) return false;
     if (!item || this.points < item.cost || !p.alive) return false;
     this.points -= item.cost;
     if (item.weapon) {
@@ -148,8 +171,9 @@ export class Survival extends Mode {
       const c = this.spawnBot(0, { pos: [p.pos.x + 2, p.pos.z + 2], role: randomRole(), ai: { follow: true, followIdx: this.game.combatants.filter((x) => x.team === 0).length - 1 } });
       c.brain.opts.noSquad = true;
     } else item.apply(p, this);
+    if (p.remote) this.game.net.sendLoadout(p);
     this.game.audio.play('ui');
     return true;
   }
-  hud() { return { title: this.title, objective: this.objective, time: null, wave: this.wave, points: this.points, enemies: this.enemiesAlive + this.toSpawn }; }
+  hud() { return { title: this.title, objective: this.objective, time: null, wave: this.wave, points: this.points, enemies: this.enemiesAlive + this.toSpawn, inBreak: this.inBreak, breakT: this.breakT }; }
 }

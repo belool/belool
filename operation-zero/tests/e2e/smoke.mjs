@@ -64,7 +64,7 @@ if (!benchOnly) {
       return out;
     }, { cfg, secs });
     check(r.state === 'playing' && r.hud && r.n > 1, `${name}: partida rodando (${r.n} combatentes, ${r.shots} disparos, ${r.kills} abates, sim ${r.sim.toFixed(2)} ms/quadro)`);
-    check(r.shots > 0, `${name}: IA entrou em combate`);
+    check(r.shots > 0 || r.kills > 0, `${name}: IA entrou em combate`); // no BR, combates distantes são simulados sem projéteis
   }
   check(errors.length === 0, 'modos sem erros de página ' + (errors[0] || ''));
 

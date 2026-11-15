@@ -451,6 +451,7 @@ export class Menus {
       rng('particles', 0.25, 1.5, 0.05, 'Densidade de partículas', (v) => Math.round(v * 100) + '%'),
       rng('fov', 60, 110, 1, 'Campo de visão (FOV)', (v) => v + '°'),
       rng('fogMul', 0.3, 1.5, 0.05, 'Intensidade da neblina', (v) => Math.round(v * 100) + '%'),
+      chk('postFX', 'Pós-processamento (brilho, cor, vinheta, granulação)'),
       chk('dynamicRes', 'Resolução dinâmica (reduz a resolução quando o FPS cai)'),
       chk('showFps', 'Mostrar FPS e métricas'),
       chk('crosshair', 'Mostrar mira'),

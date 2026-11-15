@@ -249,6 +249,7 @@ export class Net {
       case 'melee': if (c.alive) { c.yaw = d.a[0]; c.pitch = d.a[1]; c.melee(); } break;
       case 'use': if (c.alive) g.mode?.interact?.(c); break;
       case 'buy': g.mode?.buy?.(d.id, c); break;
+      case 'streak': if (c.alive && ['uav', 'artillery', 'barrage'].includes(d.type)) g.executeStreak(d.type, c, d.t ? new THREE.Vector3(d.t[0], d.t[1], d.t[2]) : null); break;
       default: break;
     }
   }

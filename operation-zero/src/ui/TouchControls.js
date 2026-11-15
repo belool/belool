@@ -28,6 +28,8 @@ const BUTTONS = [
   ['melee', '🗡', 'b-melee', 'melee'],
   ['swap', '1⇆2', 'b-swap', 'swap'],
   ['interact', 'E', 'b-interact', 'interact'],
+  ['streak', 'APOIO', 'b-streak', 'streak'],
+  ['breath', 'RESP', 'b-breath', 'breath'],
 ];
 const TOPBAR = [
   ['pause', '❚❚', 'pause'], ['map', 'MAPA', 'map'], ['score', 'PLACAR', 'scoreboard'],
@@ -136,6 +138,7 @@ export class TouchControls {
       else if (b === 'swap') inp.mouse.wheel += 1;
       else if (b === 'pause') this.game.pause();
       else if (b === 'score') inp.hold('scoreboard', true);
+      else if (b === 'breath') inp.hold('sprint', true);
       else if (b === 'map') inp.tap('map');
       else if (b === 'shop') inp.tap('inventory');
       else {
@@ -189,6 +192,7 @@ export class TouchControls {
         if (!stillFiring) inp.mouse.left = false;
       }
       if (p.b === 'score') inp.hold('scoreboard', false);
+      if (p.b === 'breath') inp.hold('sprint', false);
     }
   }
 
@@ -209,6 +213,8 @@ export class TouchControls {
     this.btn.interact.classList.toggle('hidden', !prompt);
     this.btn.shop.classList.toggle('hidden', !(g.mode?.buy && g.mode.inBreak));
     this.btn.order.classList.toggle('hidden', !g.combatants.some((c) => c.alive && c.brain?.opts.ally));
+    this.btn.streak.classList.toggle('hidden', !g.streaks?.length || !p.alive);
+    this.btn.breath.classList.toggle('hidden', !g.scoped);
     const inVehicle = !!p.vehicle;
     for (const id of ['fire', 'fireL', 'ads', 'reload', 'grenade', 'cycle', 'melee', 'swap', 'crouch']) this.btn[id].classList.toggle('hidden', inVehicle || !p.alive);
     this.btn.jump.textContent = inVehicle ? 'FREIO' : 'PULAR';

@@ -32,11 +32,13 @@ Tudo isso fica em Configurações → Controles (tamanho, opacidade e sensibilid
 | Mover | W A S D | Granada / trocar tipo | G / X |
 | Correr | Shift | Faca | V |
 | Agachar (alternar / segurar) | C / Ctrl | Interagir, plantar C4, dirigir | E |
-| Pular | Espaço | Ordem ao esquadrão (seguir/manter/atacar) | Q |
+| Pular / escalar obstáculo baixo | Espaço | Ordem ao esquadrão (seguir/manter/atacar) | Q |
 | Atirar / mirar | Mouse esq. / dir. | Lanterna | F |
 | Recarregar | R | Placar | Tab |
 | Trocar arma | 1 / 2 / roda | Mapa grande | M |
 | Modo de disparo | B | Loja (Sobrevivência) | I |
+| Deslizar | C correndo | Usar apoio (radar/artilharia) | T |
+| Prender a respiração na luneta | Shift mirando | | |
 
 ## Jogar online com amigos
 
@@ -65,11 +67,13 @@ A especificação priorizava UE5 + C++/Blueprints. Este protótipo foi feito em 
 
 ## O que foi implementado
 
-**Gráficos e ambiente** — iluminação dinâmica com sombras (PCF soft), céu procedural com sol, lua e estrelas, ciclo dia/noite contínuo, neblina, chuva, tempestade com relâmpagos e trovões, lanterna, postes que acendem à noite. Partículas na GPU (fogo, fumaça, faíscas, poeira, sangue), traçantes, marcas de bala, destroços com física. Seis mapas: refinaria (industrial), Distrito 9 (urbano), Floresta Negra, Posto Oásis (deserto), Fortaleza Krane (base militar) e Ilha Zero (640 × 640 m, Battle Royale).
+**Gráficos e ambiente** — pós-processamento (bloom em clarões, explosões e luzes; correção de cor com tom por horário; vinheta; granulação; aberração cromática ao estar ferido), nuvens procedurais animadas, cordilheiras no horizonte, iluminação dinâmica com sombras (PCF soft), céu procedural com sol, lua e estrelas, ciclo dia/noite contínuo, neblina, chuva, tempestade com relâmpagos e trovões, lanterna, postes que acendem à noite. Partículas na GPU (fogo, fumaça, faíscas, poeira, sangue), traçantes, marcas de bala, destroços com física. Seis mapas: refinaria (industrial), Distrito 9 (urbano), Floresta Negra, Posto Oásis (deserto), Fortaleza Krane (base militar) e Ilha Zero (640 × 640 m, Battle Royale).
 
 **Destruição parcial** — paredes em módulos que abrem buracos com explosivos, paredes de madeira e cercas que quebram a tiros, vidros, caixas, barris explosivos em cadeia, portões e caminhões destrutíveis. A navegação da IA é recalculada na região destruída.
 
 **Armas** — 10 armas (2 pistolas, 2 fuzis de assalto, 2 submetralhadoras, escopeta, rifle de precisão, fuzil de atirador, metralhadora pesada) + faca, granadas de fragmentação, fumaça e atordoamento, C4 nas missões. Cada arma tem dano, cadência, alcance, queda de dano, recuo vertical/horizontal com recuperação, dispersão (quadril, mira, movimento, rajada), modos de disparo (auto, rajada, semi, ferrolho, bomba), recarga tática e vazia (escopeta cartucho a cartucho). Acessórios: miras (red dot, 3x, 6x com luneta), supressor, compensador, freio de boca, empunhaduras, laser, carregadores estendido/rápido. Munições FMJ, perfurante (AP) e ponta oca (HP). Sete camuflagens desbloqueadas por desempenho.
+
+**Movimento e jogabilidade** — deslizar (agachar durante a corrida), escalar obstáculos baixos ao pular contra eles, oscilação da luneta com respiração presa (Shift), cápsulas ejetadas, recompensas por sequência de abates: 3 abates = radar (inimigos no minimapa e para seus aliados de IA), 5 = artilharia e 7 = bombardeio pesado no ponto mirado. Bots inimigos também ganham radar (4 abates seguidos) e pedem artilharia sobre jogadores (6), com aviso na tela.
 
 **Física e balística** — projéteis simulados com velocidade e gravidade (queda de bala no rifle de precisão), penetração por material e espessura (madeira atravessa, concreto não, AP atravessa tijolo), ricochete em ângulos rasos, dano por região (cabeça, tórax, abdômen, pernas), armadura, dano de queda, atropelamento. Movimento: andar, correr, agachar, pular, subir escadas e degraus, paraquedas.
 
@@ -86,7 +90,7 @@ A especificação priorizava UE5 + C++/Blueprints. Este protótipo foi feito em 
 ## Limites atuais (honestamente)
 
 - **Online exige o servidor do jogo** (`npm start`); não há antitrapaça nem entrada no meio da partida, e a campanha não é cooperativa.
-- Modelos são low-poly procedurais com animação procedural — não há personagens esculpidos, captura de movimento nem animações esqueléticas.
+- Modelos são procedurais (formas arredondadas, equipamento, armas montadas em peças) com animação procedural — não há personagens esculpidos, texturas fotográficas, captura de movimento nem animações esqueléticas.
 - O terreno é plano (com aterros e túneis cobertos); não há subsolo com múltiplos níveis para a IA. Os bots navegam só no térreo; o jogador pode subir em telhados, segundos andares e torres.
 - Veículos apenas no Battle Royale; bots não dirigem.
 
@@ -114,7 +118,7 @@ Otimizações: geometria estática mesclada por material; objetos destrutíveis 
 
 ```
 operation-zero/
-├── index.html · css/style.css · vendor/three.module.min.js (r170, MIT)
+├── index.html · css/style.css · vendor/three.module.min.js + vendor/jsm (pós-processamento do Three.js r170, MIT)
 ├── src/
 │   ├── main.js                 ponto de entrada
 │   ├── core/                   Game (laço e orquestração), Input, Audio, Save, Events, Benchmark

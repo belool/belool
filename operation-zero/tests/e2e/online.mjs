@@ -66,14 +66,19 @@ const dist = Math.hypot(moved[0] - before[0], moved[2] - before[2]);
 check(dist > 3 && Math.hypot(seen[0] - moved[0], seen[2] - moved[2]) < 0.6, `movimento do cliente sincronizado (andou ${dist.toFixed(1)} m)`);
 // cliente atira em um inimigo à queima-roupa: o anfitrião aplica o dano
 const hit = await (async () => {
+  // área aberta conhecida da refinaria; os demais bots ficam longe da linha de tiro
+  await B.evaluate(() => { const p = window.__game.player; p.pos.set(30, 0, -60); p.vel.set(0, 0, 0); });
+  await run(0.4);
   const target = await A.evaluate(() => {
     const g = window.__game; const r = g.combatants.find((c) => c.remote);
     const e = g.combatants.find((c) => c.team !== r.team && c.alive && !c.remote && !c.isPlayer);
-    e.brain && (e.brain.reaction = 99); e.pos.set(r.pos.x, 0, r.pos.z - 4); e.health = 1000; e.maxHealth = 1000; e.spawnProtect = 0;
+    for (const c of g.combatants) if (c.brain) { c.brain.update = () => { c.intent.forward = c.intent.right = 0; c.intent.fire = false; }; if (c !== e) c.pos.set(-60 + c.id, 0, 60); }
+    e.pos.set(30, 0, -65); e.health = 1000; e.maxHealth = 1000; e.spawnProtect = 0; e.alive = true;
+    if (g.player.team === r.team || true) g.player.pos.set(-50, 0, 50);
     return { id: e.id, x: e.pos.x, z: e.pos.z };
   });
   await run(0.4);
-  await B.evaluate((t) => { const g = window.__game; const p = g.player; p.yaw = Math.atan2(-(t.x - p.pos.x), -(t.z - p.pos.z)); p.pitch = -0.08; g.input.mouse.left = true; g.input.mouse.leftPressed = true; }, target);
+  await B.evaluate((t) => { const g = window.__game; const p = g.player; p.yaw = Math.atan2(-(t.x - p.pos.x), -(t.z - p.pos.z)); p.pitch = -0.06; g.input.mouse.left = true; g.input.mouse.leftPressed = true; }, target);
   await run(1);
   await B.evaluate(() => { window.__game.input.mouse.left = false; });
   await run(0.5);

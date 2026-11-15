@@ -7,7 +7,7 @@ export const DEFAULT_BINDS = {
   sprint: 'ShiftLeft', crouch: 'KeyC', crouch2: 'ControlLeft', jump: 'Space',
   reload: 'KeyR', interact: 'KeyE', grenade: 'KeyG', cycleGrenade: 'KeyX',
   melee: 'KeyV', fireMode: 'KeyB', flashlight: 'KeyF', scoreboard: 'Tab', map: 'KeyM',
-  slot1: 'Digit1', slot2: 'Digit2', order: 'KeyQ', inventory: 'KeyI',
+  slot1: 'Digit1', slot2: 'Digit2', order: 'KeyQ', inventory: 'KeyI', streak: 'KeyT',
 };
 
 export class Input {

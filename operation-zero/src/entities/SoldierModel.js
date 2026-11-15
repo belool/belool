@@ -43,18 +43,43 @@ const SHARED_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughnes
 const geoCache = new Map();
 const SKIN = 0xc29072, DARK = 0x1d1d1d;
 // Geometrias por esquema de cores (compartilhadas entre soldados da mesma equipe).
+function cap(r, len, sx = 1, sy = 1, sz = 1) { const g = new THREE.CapsuleGeometry(r, len, 3, 8); g.scale(sx, sy, sz); return g; }
+// pendura a cápsula para baixo a partir da articulação
+function limb(r, total) { const g = new THREE.CapsuleGeometry(r, Math.max(0.01, total - 2 * r), 3, 8); g.translate(0, -total / 2, 0); return g; }
+const P = {
+  torso: cap(0.2, 0.22, 1.12, 1, 0.72), belt: new THREE.BoxGeometry(0.42, 0.06, 0.27),
+  vest: new THREE.BoxGeometry(0.46, 0.4, 0.31), pouch: new THREE.BoxGeometry(0.1, 0.11, 0.06), strap: new THREE.BoxGeometry(0.07, 0.05, 0.32),
+  pack: new THREE.BoxGeometry(0.34, 0.38, 0.17), antenna: new THREE.CylinderGeometry(0.008, 0.008, 0.45, 4),
+  pelvis: cap(0.17, 0.08, 1.2, 0.9, 0.8),
+  thigh: limb(0.088, 0.46), shin: limb(0.075, 0.44), knee: new THREE.BoxGeometry(0.12, 0.1, 0.06),
+  boot: new THREE.BoxGeometry(0.15, 0.11, 0.27),
+  head: cap(0.105, 0.06, 1, 1, 1.05), helmet: new THREE.SphereGeometry(0.152, 12, 7, 0, Math.PI * 2, 0, Math.PI / 2), brim: new THREE.CylinderGeometry(0.16, 0.16, 0.025, 12),
+  goggles: new THREE.BoxGeometry(0.2, 0.05, 0.05), visor: new THREE.BoxGeometry(0.17, 0.04, 0.02), mic: new THREE.BoxGeometry(0.02, 0.02, 0.09),
+  upperArm: limb(0.066, 0.32), foreArm: limb(0.056, 0.3), glove: new THREE.SphereGeometry(0.055, 8, 6), pad: new THREE.SphereGeometry(0.08, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+  gRecv: new THREE.BoxGeometry(0.06, 0.1, 0.42), gBarrel: new THREE.CylinderGeometry(0.014, 0.014, 0.36, 6), gMag: new THREE.BoxGeometry(0.04, 0.16, 0.07),
+  gStock: new THREE.BoxGeometry(0.05, 0.09, 0.22), gSight: new THREE.BoxGeometry(0.03, 0.04, 0.08), gGrip: new THREE.BoxGeometry(0.035, 0.09, 0.04),
+};
+P.gBarrel.rotateX(Math.PI / 2);
+const darker = (c, k) => new THREE.Color(c).multiplyScalar(k).getHex();
+// Geometrias por esquema de cores (compartilhadas entre soldados da mesma equipe).
 function bodyGeos(tc) {
   const key = [tc.uniform, tc.vest, tc.helmet, tc.visor].join(':');
   if (geoCache.has(key)) return geoCache.get(key);
+  const u = tc.uniform, v = tc.vest, gear = darker(tc.vest, 0.75), metal = 0x2a2c2f, black = 0x141414;
   const g = {
-    pelvis: merge([[G.pelvis, tc.uniform]]),
-    spine: merge([[G.torso, tc.uniform, 0, 0.32, 0], [G.vest, tc.vest, 0, 0.36, 0], [G.pack, tc.vest, 0, 0.36, 0.22]]),
-    head: merge([[G.head, SKIN, 0, 0.1, 0], [G.helmet, tc.helmet, 0, 0.16, 0, 1, 0.9, 1.08], [G.visor, tc.visor, 0, 0.13, -0.125]]),
-    thigh: merge([[G.thigh, tc.uniform]]),
-    shin: merge([[G.shin, tc.uniform], [G.boot, DARK, 0, -0.44, -0.05]]),
-    upperArm: merge([[G.upperArm, tc.uniform]]),
-    foreArm: merge([[G.foreArm, SKIN]]),
-    gun: merge([[G.gun, DARK]]),
+    pelvis: merge([[P.pelvis, u], [P.belt, black, 0, 0.06, 0]]),
+    spine: merge([
+      [P.torso, u, 0, 0.3, 0], [P.vest, v, 0, 0.34, 0],
+      [P.pouch, gear, -0.13, 0.24, -0.17], [P.pouch, gear, 0, 0.24, -0.17], [P.pouch, gear, 0.13, 0.24, -0.17],
+      [P.strap, gear, -0.15, 0.53, 0], [P.strap, gear, 0.15, 0.53, 0],
+      [P.pack, gear, 0, 0.36, 0.23], [P.antenna, black, 0.12, 0.72, 0.25],
+    ]),
+    head: merge([[P.head, SKIN, 0, 0.11, 0], [P.helmet, tc.helmet, 0, 0.15, 0, 1, 0.92, 1.1], [P.brim, tc.helmet, 0, 0.15, 0, 1, 1, 1.08], [P.goggles, black, 0, 0.2, -0.12], [P.visor, tc.visor, 0, 0.11, -0.115], [P.mic, black, 0.08, 0.06, -0.08]]),
+    thigh: merge([[P.thigh, u]]),
+    shin: merge([[P.shin, u], [P.knee, gear, 0, -0.02, -0.07], [P.boot, black, 0, -0.44, -0.05]]),
+    upperArm: merge([[P.upperArm, u], [P.pad, gear, 0, -0.02, 0, 1, 0.8, 1]]),
+    foreArm: merge([[P.foreArm, u], [P.glove, black, 0, -0.31, 0, 1, 1.2, 1]]),
+    gun: merge([[P.gRecv, metal, 0, 0, -0.18], [P.gBarrel, black, 0, 0.015, -0.56], [P.gMag, black, 0, -0.1, -0.2], [P.gStock, metal, 0, -0.01, 0.12], [P.gSight, black, 0, 0.07, -0.16], [P.gGrip, black, 0, -0.08, -0.02]]),
   };
   geoCache.set(key, g);
   return g;
@@ -106,7 +131,7 @@ export class SoldierModel {
     this.deathT = -1;
     this.deathDir = 1;
   }
-  setGunLength(len) { this.gun.scale.set(1, 1, len); this.muzzle.position.set(0, 0.03, -len); }
+  setGunLength(len) { this.gun.scale.set(1, 1, len / 0.75); this.muzzle.position.set(0, 0.015, -0.74 * len / 0.75); }
 
   // speed: velocidade horizontal (m/s); crouch 0..1; pitch em rad
   animate(dt, speed, crouch, pitch, aiming, onGround) {

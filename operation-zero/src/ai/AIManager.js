@@ -99,6 +99,15 @@ export class AIManager {
       b.setPath(p);
     }
     this.director.update(dt);
+    // Radar (UAV) da equipe: esquadrões recebem a posição de todos os inimigos
+    this.uavT = (this.uavT ?? 0) - dt;
+    if (this.uavT <= 0 && game.uavActive) {
+      this.uavT = 3;
+      for (const s of this.squads) {
+        if (!game.uavActive(s.team)) continue;
+        for (const e of game.combatants) if (e.alive && e.team !== s.team) s.known.set(e, { pos: e.pos.clone(), t: game.time, reporter: null });
+      }
+    }
     for (const s of this.squads) s.update(dt);
     // LOD: distância até o humano mais próximo (jogador local ou remotos)
     const humans = game.map.large ? game.combatants.filter((c) => (c.isPlayer || c.human) && c.alive) : [];

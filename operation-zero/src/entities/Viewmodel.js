@@ -42,8 +42,9 @@ export class Viewmodel {
     const bodyColor = camo?.color ?? vm.color ?? 0x2a2a2a;
     const body = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.6, metalness: 0.1 });
     const dark = new THREE.MeshStandardMaterial({ color: 0x2b2d30, roughness: 0.55, metalness: 0.15 });
-    const glove = new THREE.MeshStandardMaterial({ color: 0x3a342c, roughness: 0.9 });
-    const sleeve = new THREE.MeshStandardMaterial({ color: 0x4b5a3a, roughness: 0.95 });
+    const glove = new THREE.MeshStandardMaterial({ color: 0x2e2a25, roughness: 0.85 });
+    const sleeve = new THREE.MeshStandardMaterial({ color: this.game.profile?.operator?.colors?.uniform ?? 0x4b5a3a, roughness: 0.95 });
+    const furniture = new THREE.MeshStandardMaterial({ color: new THREE.Color(bodyColor).multiplyScalar(0.7), roughness: 0.75, metalness: 0.05 });
     const gun = new THREE.Group();
     this.gun = gun;
     const B = (w_, h, d, m, x, y, z) => { const me = new THREE.Mesh(new THREE.BoxGeometry(w_, h, d), m); me.position.set(x, y, z); gun.add(me); return me; };
@@ -78,11 +79,19 @@ export class Viewmodel {
       else this.mag = B(wd * 0.75, h * 0.8 * ext, 0.05, dark, 0, -h * 0.6 - h * 0.25 * (ext - 1), -len * 0.22);
       if (vm.pump) { this.pump = B(wd * 1.3, h * 0.45, len * 0.2, dark, 0, -h * 0.25, -len * 0.55); }
       if (vm.bipod) { B(0.01, 0.01, 0.2, dark, 0.03, -h * 0.3, -len * 0.7); B(0.01, 0.01, 0.2, dark, -0.03, -h * 0.3, -len * 0.7); }
+      // detalhes: trilho superior, janela de ejeção, guarda-mato, ventilação do guarda-mão
+      B(wd * 0.55, 0.012, len * 0.42, dark, 0, h * 0.31, -len * 0.3);
+      for (let i = 0; i < 6; i++) B(wd * 0.62, 0.006, 0.012, dark, 0, h * 0.325, -len * 0.12 - i * len * 0.055);
+      B(0.004, h * 0.18, len * 0.09, dark, wd * 0.51, h * 0.08, -len * 0.12);
+      B(wd * 0.25, 0.012, 0.07, dark, 0, -h * 0.34, -0.03);
+      for (let i = 0; i < 3; i++) { B(0.004, h * 0.12, 0.03, furniture, wd * 0.56, 0, -len * 0.47 - i * 0.045); B(0.004, h * 0.12, 0.03, furniture, -wd * 0.56, 0, -len * 0.47 - i * 0.045); }
+      if (vm.stock) B(wd * 0.95, h * 0.2, 0.03, dark, 0, -h * 0.12, len * 0.34);
       // acessórios
       const att = w.attachments;
       let muzzleZ = -len * 0.87;
       if (att.muzzle === 'suppressor') { C(0.022, 0.18, dark, 0, h * 0.05, muzzleZ - 0.09); muzzleZ -= 0.18; }
       else if (att.muzzle === 'compensator' || att.muzzle === 'brake') { C(0.018, 0.05, dark, 0, h * 0.05, muzzleZ - 0.025); muzzleZ -= 0.05; }
+      else { C(0.016, 0.04, dark, 0, h * 0.05, muzzleZ - 0.02); muzzleZ -= 0.04; } // quebra-chamas
       if (att.grip === 'vertical') B(0.025, 0.08, 0.025, dark, 0, -h * 0.55, -len * 0.5);
       if (att.grip === 'angled') B(0.025, 0.04, 0.07, dark, 0, -h * 0.35, -len * 0.5).rotation.x = 0.5;
       if (att.grip === 'laser') { B(0.02, 0.02, 0.06, dark, 0.035, 0, -len * 0.5); }
@@ -106,11 +115,17 @@ export class Viewmodel {
       this.muzzle = new THREE.Object3D(); this.muzzle.position.set(0, h * 0.05, muzzleZ); gun.add(this.muzzle);
       this.rest = new THREE.Vector3(0.16, -0.165, -0.3);
     }
-    // braços (manga + luva)
+    // braços: manga arredondada (cor do uniforme), punho e luva com dedos
+    const sleeveGeo = new THREE.CapsuleGeometry(0.04, 0.3, 4, 10); sleeveGeo.rotateX(Math.PI / 2);
+    const cuffGeo = new THREE.CylinderGeometry(0.043, 0.043, 0.04, 10); cuffGeo.rotateX(Math.PI / 2);
+    const handGeo = new THREE.SphereGeometry(0.038, 10, 8);
+    const fingerGeo = new THREE.CapsuleGeometry(0.012, 0.045, 2, 6); fingerGeo.rotateZ(Math.PI / 2);
     const arm = (x, z, rot) => {
       const g = new THREE.Group();
-      const sl = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.35), sleeve); sl.position.z = 0.2; g.add(sl);
-      const gl = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.09), glove); g.add(gl);
+      const sl = new THREE.Mesh(sleeveGeo, sleeve); sl.position.z = 0.22; g.add(sl);
+      const cf = new THREE.Mesh(cuffGeo, furniture); cf.position.z = 0.06; g.add(cf);
+      const hand = new THREE.Mesh(handGeo, glove); hand.scale.set(1.05, 0.85, 1.35); g.add(hand);
+      for (let i = 0; i < 3; i++) { const f = new THREE.Mesh(fingerGeo, glove); f.position.set(0, -0.025, -0.025 + i * 0.022); g.add(f); }
       g.position.set(x, -0.05, z); g.rotation.y = rot;
       gun.add(g);
       return g;

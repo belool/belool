@@ -16,8 +16,13 @@ export const WEATHER_TYPES = {
 const SKY_VS = `varying vec3 vW; void main(){ vW = (modelMatrix*vec4(position,1.0)).xyz; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); gl_Position.z = gl_Position.w; }`;
 const SKY_FS = `
 uniform vec3 top; uniform vec3 bottom; uniform vec3 sunDir; uniform vec3 sunColor; uniform float stars; uniform float flash; uniform vec3 camPos;
+uniform float cloud; uniform float time; uniform float day;
 varying vec3 vW;
 float hash(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,45.164)))*43758.5453); }
+float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+  return mix(mix(h2(i), h2(i+vec2(1,0)), f.x), mix(h2(i+vec2(0,1)), h2(i+vec2(1,1)), f.x), f.y); }
+float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { v += a * n2(p); p = p * 2.03 + 17.1; a *= 0.5; } return v; }
 void main(){
   vec3 d = normalize(vW - camPos);
   float h = clamp(d.y*1.4+0.15, 0.0, 1.0);
@@ -28,6 +33,18 @@ void main(){
     vec3 q = floor(d*220.0);
     float st = step(0.9975, hash(q));
     col += vec3(st*stars*(0.6+0.4*hash(q+1.0)));
+  }
+  // nuvens procedurais (projeção plana sobre o céu, vento lento)
+  if (d.y > 0.0) {
+    vec2 uv = d.xz / (d.y + 0.12) * 0.55 + vec2(time * 0.006, time * 0.002);
+    float n = fbm(uv);
+    float cov = 0.25 + cloud * 0.55;
+    float c = smoothstep(1.0 - cov, 1.0 - cov + 0.28, n) * smoothstep(0.0, 0.18, d.y);
+    float lit = 0.55 + 0.45 * max(dot(normalize(vec3(sunDir.x, 0.0, sunDir.z) + 0.0001), normalize(vec3(d.x, 0.0, d.z))), 0.0);
+    vec3 cc = mix(vec3(0.06, 0.07, 0.09), mix(vec3(0.62, 0.64, 0.68), vec3(1.0, 0.98, 0.95), lit), day);
+    cc = mix(cc, cc * vec3(0.55, 0.57, 0.62), cloud * 0.6);
+    cc += sunColor * pow(max(dot(d, sunDir), 0.0), 12.0) * 0.6;
+    col = mix(col, cc, c * 0.92);
   }
   col += vec3(flash);
   gl_FragColor = vec4(col, 1.0);
@@ -53,7 +70,7 @@ export class Weather {
     scene.add(this.sun); scene.add(this.sun.target);
     this.skyMat = new THREE.ShaderMaterial({
       vertexShader: SKY_VS, fragmentShader: SKY_FS, side: THREE.BackSide, depthWrite: false, fog: false,
-      uniforms: { top: { value: new THREE.Color() }, bottom: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3() }, sunColor: { value: new THREE.Color() }, stars: { value: 0 }, flash: { value: 0 }, camPos: { value: new THREE.Vector3() } },
+      uniforms: { cloud: { value: 0.1 }, time: { value: 0 }, day: { value: 1 }, top: { value: new THREE.Color() }, bottom: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3() }, sunColor: { value: new THREE.Color() }, stars: { value: 0 }, flash: { value: 0 }, camPos: { value: new THREE.Vector3() } },
     });
     this.sky = new THREE.Mesh(new THREE.SphereGeometry(900, 24, 12), this.skyMat);
     this.sky.renderOrder = -10; this.sky.frustumCulled = false;
@@ -151,6 +168,9 @@ export class Weather {
     this.skyMat.uniforms.stars.value = (1 - day) * (1 - cloud);
     this.skyMat.uniforms.flash.value = flash * 0.6;
     this.skyMat.uniforms.camPos.value.copy(camPos);
+    this.skyMat.uniforms.cloud.value = cloud;
+    this.skyMat.uniforms.day.value = day;
+    this.skyMat.uniforms.time.value = (this.skyMat.uniforms.time.value + dt * 60) % 100000;
     this.sky.position.copy(camPos);
 
     // Sol / lua

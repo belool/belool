@@ -236,6 +236,16 @@ export class Effects {
     }
   }
 
+  // Cápsula ejetada (latão) — reutiliza os destroços físicos.
+  casing(pos, right, color = 0xc9a24a) {
+    if (this.deb.length >= this.debCap) this.deb.shift();
+    this.deb.push({
+      p: pos.clone(), v: new THREE.Vector3(right.x * rand(2, 3.5), rand(1.5, 3), right.z * rand(2, 3.5)),
+      r: new THREE.Euler(rand(0, 6), rand(0, 6), rand(0, 6)), w: new THREE.Vector3(rand(-20, 20), rand(-20, 20), rand(-20, 20)),
+      s: 0.014, life: 2.5, c: new THREE.Color(color),
+    });
+  }
+
   debris(center, size, mat, tint) {
     const m = MATERIALS[mat] || MATERIALS.concrete;
     const c = new THREE.Color(tint ?? m.color ?? 0x888888);

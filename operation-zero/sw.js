@@ -1,6 +1,6 @@
 // Service worker: o jogo funciona offline e pode ser instalado na tela inicial.
 // Estratégia: rede primeiro (pega atualizações), cache como reserva.
-const CACHE = 'operation-zero-v2';
+const CACHE = 'operation-zero-v3';
 const FILES = [
   './',
   'index.html',
@@ -29,6 +29,7 @@ const FILES = [
   'src/entities/Vehicle.js',
   'src/entities/Viewmodel.js',
   'src/fx/Effects.js',
+  'src/fx/PostFX.js',
   'src/main.js',
   'src/modes/BattleRoyale.js',
   'src/modes/Campaign.js',

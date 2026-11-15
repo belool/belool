@@ -5,7 +5,7 @@ import { Input } from './Input.js';
 import { Save } from './Save.js';
 import { mulberry32, clamp, lerp, rand } from './util.js';
 import { World } from '../world/World.js';
-import { MapBuilder } from '../world/MapBuilder.js';
+import { MapBuilder, horizonMountains } from '../world/MapBuilder.js';
 import { NavGrid } from '../world/NavGrid.js';
 import { MAPS } from '../world/maps.js';
 import { Weather } from '../world/Weather.js';
@@ -19,7 +19,10 @@ import { AIManager } from '../ai/AIManager.js';
 import { Progression, XP, rankDelta } from '../progression/Progression.js';
 import { createMode } from '../modes/index.js';
 import { Net } from '../net/Net.js';
+import { PostFX } from '../fx/PostFX.js';
 import { ClientMode } from '../modes/ClientMode.js';
+
+const STREAK_NAMES = { uav: 'Radar (UAV)', artillery: 'Artilharia', barrage: 'Bombardeio pesado' };
 
 // ================================================================
 // GAME — orquestra todos os sistemas: renderização, laço principal,
@@ -34,7 +37,7 @@ export class Game {
     this.settings = saved.settings;
     this.isTouchDevice = (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints || 0) > 0;
     // primeira execução em celular: perfil gráfico mais leve
-    if (saved.fresh && this.isTouchDevice) Object.assign(this.settings, { quality: 'medium', renderScale: 0.8, shadowRes: 1024, particles: 0.7, viewDistance: 0.7, fov: 75 });
+    if (saved.fresh && this.isTouchDevice) Object.assign(this.settings, { postFX: false, quality: 'medium', renderScale: 0.8, shadowRes: 1024, particles: 0.7, viewDistance: 0.7, fov: 75 });
     this.events = new Events();
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.shadowMap.enabled = true;
@@ -79,6 +82,7 @@ export class Game {
     });
     this.events.on('kill', (e) => this.onKill(e));
     addEventListener('resize', () => this.resize());
+    try { this.postfx = new PostFX(this); } catch (e) { console.warn('Pós-processamento indisponível', e); this.postfx = null; }
     this.applySettings();
     this.resize();
     this.last = performance.now();
@@ -114,6 +118,7 @@ export class Game {
   resize() {
     const w = innerWidth, h = innerHeight;
     this.renderer.setSize(w, h, false);
+    this.postfx?.setSize(w, h);
     this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
     this.viewmodel.camera.aspect = w / h; this.viewmodel.camera.updateProjectionMatrix();
     this.fx.setScale(h / (2 * Math.tan((this.camera.fov * Math.PI) / 360)));
@@ -134,6 +139,7 @@ export class Game {
     this.builder = B;
     B.finish(map.theme);
     this.world.build();
+    horizonMountains(this.world, S, map.theme, mulberry32(seed + 7));
     // chão
     const tex = getTexture(map.ground.kind, map.ground.tint).clone();
     tex.needsUpdate = true;
@@ -154,6 +160,7 @@ export class Game {
   unloadMap() {
     for (const c of this.combatants) c.destroy();
     this.combatants = [];
+    this.timers = []; this.strikes = []; this.streaks = []; this.uavUntil = {}; this.breath = 1;
     for (const v of this.vehicles || []) v.destroy();
     this.vehicles = [];
     this.player = null;
@@ -274,6 +281,7 @@ export class Game {
       this.audio.play(e.headshot ? 'headshot' : 'kill', null, 0.8);
     }
     if (e.victim === p) this.progression.record({ type: 'death' });
+    this.onStreak(e);
     this.mode?.onKill(e);
   }
   weaponClassOf(id) {
@@ -377,7 +385,8 @@ export class Game {
       it.right = clamp(it.right + inp.touch.moveX, -1, 1);
       if (-inp.touch.moveY > 0.85 && Math.hypot(inp.touch.moveX, inp.touch.moveY) > 0.95) it.sprint = true;
     }
-    if (inp.hit('crouch')) this.crouchToggle = !this.crouchToggle;
+    if (inp.hit('crouch') && p.sprinting) it.slide = true; // agachar correndo = deslizar
+    else if (inp.hit('crouch')) this.crouchToggle = !this.crouchToggle;
     if (it.sprint && it.forward > 0) this.crouchToggle = false;
     it.crouch = this.crouchToggle || inp.down('crouch2');
     if (inp.hit('jump')) { it.jump = true; this.crouchToggle = false; }
@@ -404,6 +413,8 @@ export class Game {
     if (inp.hit('flashlight')) this.weather.toggleFlashlight();
     if (inp.hit('interact')) this.mode?.interact?.(p);
     if (inp.hit('order')) this.cycleSquadOrder();
+    if (inp.hit('streak')) this.useStreak();
+    this.updateBreath(dt, p, w);
   }
 
   // Alvo mais próximo da mira (cone de ~8°) com linha de visão; reavaliado a cada 0,1 s.
@@ -450,6 +461,106 @@ export class Game {
     if (this.dynScale !== before) { this.renderer.setPixelRatio(this.basePixelRatio * this.dynScale); this.resize(); }
   }
 
+  // ---------------- Luneta: oscilação e respiração ----------------
+  updateBreath(dt, p, w) {
+    const scoped = p.ads > 0.9 && w.stats.adsZoom >= 3;
+    this.breath = this.breath ?? 1;
+    this.breathOut = Math.max(0, (this.breathOut || 0) - dt);
+    let amp = 0;
+    if (scoped) {
+      const holding = this.input.down('sprint') && this.breath > 0 && this.breathOut <= 0;
+      if (holding && !this.holdingBreath) this.audio.play('breath', null, 0.5);
+      this.holdingBreath = holding;
+      if (holding) this.breath = Math.max(0, this.breath - dt / 4.5);
+      else this.breath = Math.min(1, this.breath + dt / 3);
+      if (this.breath <= 0 && this.breathOut <= 0) { this.breathOut = 2.5; this.audio.play('breath', null, 0.8); }
+      amp = holding ? 0.00035 : this.breathOut > 0 ? 0.011 : 0.0042;
+      amp *= p.crouchT > 0.5 ? 0.6 : 1;
+    } else { this.holdingBreath = false; this.breath = Math.min(1, this.breath + dt / 3); }
+    this.swayAmp = (this.swayAmp ?? 0) + (amp - (this.swayAmp ?? 0)) * Math.min(1, dt * 6);
+    const t = this.time, a = this.swayAmp;
+    const sx = Math.sin(t * 0.9) * a + Math.sin(t * 2.3) * a * 0.35, sy = Math.sin(t * 1.35) * a * 0.75;
+    p.yaw += sx - (this._swx || 0); p.pitch += sy - (this._swy || 0);
+    this._swx = sx; this._swy = sy;
+    this.scoped = scoped;
+  }
+
+  // ---------------- Recompensas por sequência de abates ----------------
+  onStreak(e) {
+    const k = e.killer, v = e.victim;
+    if (v) v.streak = 0;
+    if (!k || k === v || k.team === v?.team) return;
+    k.streak = (k.streak || 0) + 1;
+    const p = this.player;
+    if (k === p) {
+      const reward = { 3: 'uav', 5: 'artillery', 7: 'barrage' }[k.streak];
+      if (reward) {
+        (this.streaks ||= []).push(reward);
+        this.events.emit('toast', { title: STREAK_NAMES[reward] + ' disponível', text: this.touch?.enabled ? 'Toque em APOIO para usar' : 'Pressione [T] para usar' });
+        this.audio.play('radio');
+      }
+    } else if (!k.human && !this.netClient && k.brain && p && k.team !== p.team) {
+      // bots inimigos também ganham apoio: radar e artilharia sobre jogadores
+      if (k.streak === 4) this.activateUav(k.team, 20, true);
+      if (k.streak === 6) {
+        const targets = this.combatants.filter((c) => c.alive && (c.isPlayer || c.human) && c.team !== k.team);
+        const t = targets[Math.floor(Math.random() * targets.length)];
+        if (t) { this.callArtillery(t.pos.clone(), k, 5, 9); this.events.emit('toast', { title: 'ARTILHARIA INIMIGA!', text: 'Saia da área marcada no mapa!' }); }
+      }
+    }
+  }
+  useStreak() {
+    const p = this.player;
+    if (!p?.alive || !this.streaks?.length) return;
+    const type = this.streaks.shift();
+    let target = null;
+    if (type !== 'uav') {
+      const cam = this.camera.getWorldPosition(new THREE.Vector3());
+      const hit = this.world.raycast(cam, p.forward(), 400);
+      target = hit ? hit.point : cam.clone().addScaledVector(p.forward(), 60).setY(0);
+    }
+    this.events.emit('radio', { from: 'Comando', text: type === 'uav' ? 'Radar no ar. Inimigos marcados no mapa.' : 'Artilharia a caminho! Fiquem longe do alvo!' });
+    this.audio.play('radio');
+    if (this.netClient) { this.net.send({ k: 'streak', type, t: target ? [target.x, target.y, target.z] : null }); if (type === 'uav') this.activateUav(p.team, 25); return; }
+    this.executeStreak(type, p, target);
+  }
+  executeStreak(type, who, target) {
+    if (type === 'uav') this.activateUav(who.team, 25);
+    else if (type === 'artillery') this.callArtillery(target, who, 6, 8);
+    else if (type === 'barrage') this.callArtillery(target, who, 12, 13);
+  }
+  activateUav(team, secs, enemy = false) {
+    (this.uavUntil ||= {})[team] = this.time + secs;
+    this.audio.play('uav', null, 0.6);
+    if (enemy) this.events.emit('toast', { title: 'RADAR INIMIGO ATIVO', text: 'Eles sabem onde você está. Mantenha-se em movimento!' });
+    if (this.net.isHost) for (const peer of this.net.peers.values()) {
+      if (peer.c?.team === team) this.net.to(peer.id, { k: 'uav', secs });
+      else if (enemy) this.net.to(peer.id, { k: 'uavWarn' });
+    }
+  }
+  uavActive(team) { return (this.uavUntil?.[team] ?? -1) > this.time; }
+  callArtillery(target, who, shells, radius) {
+    if (!target) return;
+    const mark = { x: target.x, z: target.z, r: radius, until: this.time + 2 + shells * 0.35 + 0.5 };
+    (this.strikes ||= []).push(mark);
+    for (let i = 0; i < shells; i++) {
+      this.schedule(2 + i * 0.35, () => {
+        const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * radius;
+        const pos = new THREE.Vector3(target.x + Math.cos(a) * r, 0.3, target.z + Math.sin(a) * r);
+        const hit = this.world.raycast(new THREE.Vector3(pos.x, 60, pos.z), new THREE.Vector3(0, -1, 0), 70);
+        if (hit) pos.copy(hit.point).setY(hit.point.y + 0.2);
+        this.explode(pos, { radius: 6, damage: 150, attacker: who, source: 'artillery' });
+      });
+      if (i === 0) this.schedule(0.6, () => this.audio.play('whistle', target, 1));
+    }
+  }
+  schedule(sec, fn) { (this.timers ||= []).push({ t: sec, fn }); }
+  runTimers(dt) {
+    if (!this.timers?.length) return;
+    for (let i = this.timers.length - 1; i >= 0; i--) { const tm = this.timers[i]; tm.t -= dt; if (tm.t <= 0) { this.timers.splice(i, 1); tm.fn(); } }
+    if (this.strikes) this.strikes = this.strikes.filter((s) => s.until > this.time);
+  }
+
   cycleSquadOrder() {
     const allies = this.combatants.filter((c) => c.alive && c.team === this.player.team && c.brain?.opts.ally);
     if (!allies.length) return;
@@ -484,7 +595,7 @@ export class Game {
     else if (this.state === 'menu') this.menuCamera(dt);
     else if (this.state === 'results' || this.state === 'paused') this.weather.update(0, this.camera.position);
     const t1 = performance.now();
-    this.render();
+    this.render(dt);
     const t2 = performance.now();
     this.events.emit('frame', dt);
     this.input.endFrame();
@@ -496,6 +607,7 @@ export class Game {
 
   simulate(dt) {
     this.time += dt;
+    this.runTimers(dt);
     if (this.manualFrames) this.audio.beginFrame();
     this.updatePlayer(dt);
     this.mode.update(dt);
@@ -567,8 +679,10 @@ export class Game {
     this.fx.update(dt);
   }
 
-  render() {
+  render(dt = 1 / 60) {
     const r = this.renderer;
+    const showVm = (this.state === 'playing' || this.state === 'paused') && this.player?.alive && !this.player.vehicle && !!this.viewmodel.current && this.viewmodel.root.visible;
+    if (this.settings.postFX && this.postfx) { this.postfx.render(showVm, dt); return; }
     r.clear();
     r.render(this.scene, this.camera);
     if ((this.state === 'playing' || this.state === 'paused') && this.player?.alive && !this.player.vehicle && this.viewmodel.current) {

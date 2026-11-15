@@ -112,6 +112,11 @@ button { font: inherit; }
 #bigmap .hint { color: var(--dim); margin-top: 6px; }
 #shop { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 560px; background: var(--panel2); border: 1px solid var(--line); padding: 18px; pointer-events: auto; }
 #fps { position: absolute; right: 8px; bottom: 4px; font-size: 11px; color: #9aa; font-variant-numeric: tabular-nums; }
+#streak { position: absolute; right: 22px; bottom: 132px; font-size: 13px; text-align: right; color: var(--dim); }
+#streak b { color: var(--accent); }
+#breath { position: absolute; left: 50%; bottom: 18%; transform: translateX(-50%); width: 220px; text-align: center; font-size: 12px; color: #ddd; }
+#breath div { height: 4px; background: var(--accent2); margin-top: 4px; transition: width .1s; }
+body.touch #streak { right: auto; left: 50%; transform: translateX(-50%); bottom: 96px; font-size: 11px; text-align: center; }
 #reloadHint { position: absolute; left: 50%; top: 56%; transform: translateX(-50%); color: var(--accent); font-weight: 700; font-size: 14px; letter-spacing: .1em; }
 
 @keyframes fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
@@ -230,6 +235,8 @@ body.touch .t-stick:not(.hidden) ~ .t-stick-hint { display: none; }
 .b-melee { right: calc(118px * var(--tscale)); bottom: calc(18px * var(--tscale)); width: calc(50px * var(--tscale)); height: calc(50px * var(--tscale)); }
 .b-swap { right: calc(130px * var(--tscale)); bottom: calc(196px * var(--tscale)); width: calc(54px * var(--tscale)); height: calc(40px * var(--tscale)); border-radius: 10px; font-size: calc(11px * var(--tscale)); }
 .b-interact { right: calc(214px * var(--tscale)); bottom: calc(188px * var(--tscale)); width: calc(64px * var(--tscale)); height: calc(64px * var(--tscale)); background: rgba(255,176,32,.45); border-color: var(--accent); font-size: calc(20px * var(--tscale)); }
+.b-streak { left: 50%; transform: translateX(-50%); bottom: calc(150px * var(--tscale)); width: calc(70px * var(--tscale)); height: calc(36px * var(--tscale)); border-radius: 8px; background: rgba(255,176,32,.5); border-color: var(--accent); font-size: calc(11px * var(--tscale)); }
+.b-breath { right: calc(214px * var(--tscale)); bottom: calc(260px * var(--tscale)); }
 .t-top { position: absolute; left: 50%; top: calc(64px * var(--tscale)); transform: translateX(-50%); display: flex; gap: 6px; }
 .t-rotate { display: none; position: absolute; inset: 0; background: rgba(5,8,11,.92); color: #fff; font-size: 18px; place-items: center; text-align: center; padding: 30px; }
 @media (orientation: portrait) { body.touch #touch .t-rotate { display: grid; } }

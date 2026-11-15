@@ -16,7 +16,7 @@ export const DEFAULT_SETTINGS = {
   sensitivity: 1, adsSensitivity: 0.75, invertY: false, master: 0.8, sfx: 0.9, ambient: 0.6, voice: 0.8, voiceTTS: true,
   showFps: true, crosshair: true, fogMul: 1, timeSpeed: 1, difficulty: 'normal',
   touchControls: 'auto', touchSens: 1, touchScale: 1, touchOpacity: 0.55,
-  aimAssist: true, autoFire: false, haptics: true, gyro: false, gyroSens: 1, gyroInvert: false, dynamicRes: true,
+  postFX: true, aimAssist: true, autoFire: false, haptics: true, gyro: false, gyroSens: 1, gyroInvert: false, dynamicRes: true,
 };
 
 export function defaultProfile() {

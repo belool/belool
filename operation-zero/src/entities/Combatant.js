@@ -166,6 +166,45 @@ export class Combatant {
   updateMovement(dt) {
     const it = this.intent;
     const w = this.weapon;
+    // Escalada em andamento (pular sobre obstáculo baixo)
+    if (this.vault) {
+      const v = this.vault;
+      v.t += dt;
+      const k = Math.min(1, v.t / v.dur);
+      this.pos.lerpVectors(v.from, v.to, k);
+      this.pos.y += Math.sin(k * Math.PI) * 0.35;
+      this.vel.set(0, 0, 0);
+      if (k >= 1) { this.vault = null; this.onGround = true; this.vel.copy(v.dir).multiplyScalar(3); this.game.audio.play('land', this.isPlayer ? null : this.pos, 0.5); }
+      it.jump = false;
+      return;
+    }
+    // Deslizar: agachar durante a corrida
+    if (it.slide && this.sprinting && this.onGround && !this.slideT) {
+      this.slideT = 0.9;
+      this.slideDir = new THREE.Vector3(this.vel.x, 0, this.vel.z).normalize();
+      this.slideSpeed = Math.max(Math.hypot(this.vel.x, this.vel.z), MOVE.sprint) * 1.35;
+      this.game.audio.play('slide', this.isPlayer ? null : this.pos, 0.7);
+      this.game.events.emit('slide', this);
+    }
+    it.slide = false;
+    if (this.slideT > 0) {
+      this.slideT -= dt;
+      this.slideSpeed -= 8.5 * dt;
+      this.height += clamp(MOVE.crouchH - this.height, -dt * 8, dt * 8);
+      this.crouchT = (MOVE.stand - this.height) / (MOVE.stand - MOVE.crouchH);
+      // leve controle lateral
+      const s = Math.sin(this.yaw), c = Math.cos(this.yaw);
+      this.slideDir.x += (it.right * c) * dt * 1.5; this.slideDir.z += (-it.right * s) * dt * 1.5; this.slideDir.normalize();
+      this.vel.x = this.slideDir.x * this.slideSpeed; this.vel.z = this.slideDir.z * this.slideSpeed;
+      if (it.jump) { this.slideT = 0; this.vel.y = MOVE.jump; this.onGround = false; }
+      it.jump = false;
+      this.vel.y -= MOVE.gravity * dt;
+      const was = this.onGround;
+      this.onGround = this.game.world.moveCharacter(this.pos, this.vel, MOVE.radius, this.height, dt, was);
+      if (this.slideT <= 0 || this.slideSpeed < 3 || Math.hypot(this.vel.x, this.vel.z) < 2.5) this.slideT = 0;
+      this.sprinting = false;
+      return;
+    }
     // Agachar (altura suave)
     const wantCrouch = it.crouch;
     let targetH = wantCrouch ? MOVE.crouchH : MOVE.stand;
@@ -192,7 +231,9 @@ export class Combatant {
     const acc = (this.onGround ? MOVE.accel : MOVE.airAccel) * dt;
     this.vel.x += clamp(tx - this.vel.x, -acc, acc);
     this.vel.z += clamp(tz - this.vel.z, -acc, acc);
-    if (it.jump && this.onGround && this.crouchT < 0.5) { this.vel.y = MOVE.jump; this.onGround = false; this.game.events.emit('jump', this); }
+    if (it.jump && this.onGround && this.crouchT < 0.5) {
+      if (!(this.isPlayer && this.tryVault())) { this.vel.y = MOVE.jump; this.onGround = false; this.game.events.emit('jump', this); }
+    }
     it.jump = false;
     // Paraquedas (Battle Royale): queda planada
     if (this.parachute) {
@@ -219,6 +260,36 @@ export class Combatant {
         if (!quiet) this.game.ai?.noise(this.pos, this.sprinting ? 18 : 9, 'step', this);
       }
     }
+  }
+
+  // Escalar: obstáculo à frente com topo entre 0,45 m e 1,35 m e espaço livre em cima.
+  tryVault() {
+    const f = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+    const W = this.game.world, p = this.pos;
+    // procura o obstáculo entre 0,45 m e 1,2 m à frente
+    let hits = [];
+    for (const d of [0.45, 0.7, 0.95, 1.2]) {
+      const px = p.x + f.x * d, pz = p.z + f.z * d;
+      hits = W.query(px - 0.22, p.y + 0.3, pz - 0.22, px + 0.22, p.y + 1.4, pz + 0.22, []).filter((b) => !b.removed && !b.noCollide);
+      if (hits.length) break;
+    }
+    if (!hits.length) return false;
+    const top = Math.max(...hits.map((b) => b.max.y));
+    const rise = top - p.y;
+    if (rise < 0.45 || rise > 1.35) return false;
+    // prefere aterrissar além do obstáculo; se for largo, sobe nele
+    for (const dist of [2.0, 1.6, 1.05]) {
+      const tx = p.x + f.x * dist, tz = p.z + f.z * dist;
+      const landY = dist > 1.5 ? p.y : top;
+      const blocked = W.query(tx - 0.3, landY + 0.02, tz - 0.3, tx + 0.3, landY + MOVE.stand, tz + 0.3, []).some((b) => !b.removed && !b.noCollide);
+      const overTop = W.query(p.x - 0.3, top + 0.02, p.z - 0.3, p.x + 0.3, top + 1.0, p.z + 0.3, []).some((b) => !b.removed && !b.noCollide);
+      if (blocked || overTop) continue;
+      if (dist > 1.5 && W.query(tx - 0.3, landY - 0.05, tz - 0.3, tx + 0.3, landY + 0.01, tz + 0.3, []).length === 0 && landY > 0.05) continue;
+      this.vault = { t: 0, dur: dist > 1.5 ? 0.45 : 0.35, from: p.clone(), to: new THREE.Vector3(tx, landY + 0.01, tz), dir: f };
+      this.game.events.emit('vault', this);
+      return true;
+    }
+    return false;
   }
 
   updateWeapon(dt) {
@@ -326,6 +397,11 @@ export class Combatant {
       this.game.ballistics.fire(this, eye, d, s, { tracer: i === 0 || Math.random() < 0.3, dmgMul: this.dmgBoost || 1 });
     }
     if (this.game.netClient) this.game.net.localShot(this, eye, dirs, s);
+    // cápsula ejetada (só perto da câmera)
+    if (s.cls !== 'melee' && s.mode !== 'bolt' && (this.isPlayer || this.game.audio.far(this.pos) < 25)) {
+      const ej = this.muzzleWorld().addScaledVector(fwd, this.isPlayer ? -0.3 : -0.4).addScaledVector(right, this.isPlayer ? 0.12 : 0.05);
+      this.game.fx.casing(ej, right, s.cls === 'shotgun' ? 0xa83a2a : 0xc9a24a);
+    }
     // Recuo
     const k = (1 - this.ads * 0.25) * (this.crouchT > 0.5 ? 0.82 : 1) * (this.isPlayer ? 1 : 0.4);
     const vk = s.recoil.vert * DEG * k * rand(0.85, 1.15);
@@ -402,6 +478,7 @@ export class Combatant {
     this.stats.deaths++;
     const killer = info.attacker;
     this.lastKiller = killer;
+    this.streak = 0;
     if (killer && killer !== this) {
       killer.stats.kills++;
       if (info.region === 'head') killer.stats.headshots++;

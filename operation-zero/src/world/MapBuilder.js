@@ -241,7 +241,7 @@ export class MapBuilder {
       },
       palm: () => {
         const trunk = new THREE.CylinderGeometry(0.14, 0.22, 6.5, 6); trunk.translate(0, 3.25, 0);
-        const crown = new THREE.ConeGeometry(2.6, 1.1, 9, 1, true); crown.rotateX(Math.PI); crown.translate(0, 6.3, 0);
+        const crown = new THREE.ConeGeometry(2.8, 1.6, 9, 1, true); crown.translate(0, 6.2, 0); // folhas caídas
         const top = new THREE.SphereGeometry(0.55, 7, 5); top.translate(0, 6.6, 0);
         return [[trunk, new THREE.MeshStandardMaterial({ color: 0x7a5a3a, roughness: 1 })], [crown, this.world.material('foliage', { tint: 0x5f7a32 })], [top, leafMat]];
       },
@@ -262,6 +262,39 @@ export class MapBuilder {
       for (const im of meshes) { im.castShadow = true; im.receiveShadow = true; this.world.addVisual(im); }
     }
   }
+}
+
+// Cordilheira de horizonte (sem colisão) ao redor do mapa, com cores por altura.
+export function horizonMountains(world, size, theme, rng) {
+  const N = 96, R0 = size + 90, R1 = size + 220, R2 = size + 420;
+  const pal = theme === 'desert' ? [0x8a6a44, 0xb08a5a, 0xd8b98a] : theme === 'forest' ? [0x22331f, 0x3a4a34, 0x8a8f86] : theme === 'island' ? [0x2f3f2a, 0x55604c, 0xe8ecef] : [0x3a3f36, 0x5a5d55, 0xd8dde0];
+  const heights = [];
+  for (let i = 0; i < N; i++) {
+    const a = i / N;
+    heights.push(45 + 70 * (0.5 + 0.5 * Math.sin(a * 13.0 + rng() * 2)) * (0.55 + 0.45 * rng()) + 40 * Math.max(0, Math.sin(a * 5.0 + 1.3)));
+  }
+  const pos = [], col = [], idx = [];
+  const c0 = new THREE.Color(pal[0]), c1 = new THREE.Color(pal[1]), c2 = new THREE.Color(pal[2]);
+  const color = (h) => { const t = Math.min(1, h / 150); return t < 0.6 ? c0.clone().lerp(c1, t / 0.6) : c1.clone().lerp(c2, Math.max(0, (t - 0.82) / 0.18) * 0.8); };
+  for (let i = 0; i <= N; i++) {
+    const a = (i % N) / N * Math.PI * 2, h = heights[i % N];
+    const ca = Math.cos(a), sa = Math.sin(a);
+    const ring = [[R0, -2], [R1 - 40, h * 0.55], [R1, h], [R2, h * 0.35]];
+    for (const [r, y] of ring) { pos.push(ca * r, y, sa * r); const c = color(y); col.push(c.r, c.g, c.b); }
+  }
+  for (let i = 0; i < N; i++) for (let k = 0; k < 3; k++) {
+    const a = i * 4 + k, b = (i + 1) * 4 + k;
+    idx.push(a, b, a + 1, b, b + 1, a + 1);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true, side: THREE.DoubleSide }));
+  m.receiveShadow = false;
+  world.addVisual(m);
+  return m;
 }
 
 function shift(openings, d) { return openings.map((o) => ({ ...o, at: o.at + d })); }

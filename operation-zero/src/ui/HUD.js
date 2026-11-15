@@ -159,6 +159,14 @@ export class HUD {
     else if (!w.isMelee && w.mag === 0 && w.reserve === 0) hint = 'SEM MUNIÇÃO';
     else if (!w.isMelee && w.mag <= Math.ceil(w.stats.mag * 0.2)) hint = '[R] RECARREGAR';
     $('reloadHint').textContent = p.alive ? hint : '';
+    // sequência de abates, recompensas e respiração na luneta
+    const names = { uav: 'Radar', artillery: 'Artilharia', barrage: 'Bombardeio' };
+    const st = g.streaks?.length ? `${g.touch?.enabled ? 'APOIO' : '[T]'} ${names[g.streaks[0]]}${g.streaks.length > 1 ? ` +${g.streaks.length - 1}` : ''}` : '';
+    const streakTxt = (p.streak ? `Sequência: ${p.streak}` : '') + (st ? `${p.streak ? ' · ' : ''}<b>${st}</b>` : '') + (g.uavActive?.(p.team) ? ' · <span style="color:var(--accent2)">RADAR ATIVO</span>' : '');
+    if ($('streak').innerHTML !== streakTxt) $('streak').innerHTML = streakTxt;
+    const br = $('breath');
+    br.classList.toggle('hidden', !g.scoped);
+    if (g.scoped) { br.querySelector('div').style.width = `${(g.breath ?? 1) * 100}%`; br.querySelector('span').textContent = g.breathOut > 0 ? 'sem fôlego…' : g.holdingBreath ? 'prendendo a respiração' : g.touch?.enabled ? 'segure RESP para estabilizar' : 'segure Shift para estabilizar'; }
     // modo
     const h = g.mode.hud();
     $('modeTitle').textContent = h.title || '';
@@ -271,10 +279,16 @@ export class HUD {
       if (!c.alive || c === p) continue;
       const ally = c.team === p.team;
       let show = ally;
-      if (!ally) show = (now - c.lastShot < 1.5 && !c.weapon.stats.suppressed && Math.hypot(c.pos.x - p.pos.x, c.pos.z - p.pos.z) < 80) || (g.mode.teamBased && this.spotted(c));
+      if (!ally && g.uavActive?.(p.team)) show = true;
+      else if (!ally) show = (now - c.lastShot < 1.5 && !c.weapon.stats.suppressed && Math.hypot(c.pos.x - p.pos.x, c.pos.z - p.pos.z) < 80) || (g.mode.teamBased && this.spotted(c));
       if (!show) continue;
       ctx.fillStyle = ally ? '#4aa3ff' : '#ff4a4a';
       ctx.beginPath(); ctx.arc(c.pos.x * scale, c.pos.z * scale, full ? 4 : 3.2, 0, 7); ctx.fill();
+    }
+    // áreas de artilharia
+    for (const s of g.strikes || []) {
+      ctx.strokeStyle = '#ff3b3b'; ctx.fillStyle = 'rgba(255,59,59,.18)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(s.x * scale, s.z * scale, s.r * scale, 0, 7); ctx.fill(); ctx.stroke();
     }
     // jogador
     ctx.save();

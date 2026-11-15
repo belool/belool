@@ -177,6 +177,10 @@ export class AudioSys {
       case 'levelup': [523, 659, 784, 1046].forEach((f, i) => this._tone(out, t + i * 0.1, f, f, 0.25, 0.25, 'triangle')); break;
       case 'melee': this._noiseBurst(out, t, 0.12, 'bandpass', 1500, 1, 0.5, 0.1); break;
       case 'zone': this._tone(out, t, 300, 280, 0.6, 0.2, 'sawtooth'); break;
+      case 'slide': this._noiseBurst(out, t, 0.6, 'bandpass', 900, 0.8, 0.35, 0.55); break;
+      case 'whistle': this._tone(out, t, 1600, 500, 1.4, 0.18, 'sine'); break;
+      case 'uav': [700, 900, 700, 900].forEach((f, i) => this._tone(out, t + i * 0.12, f, f, 0.1, 0.18, 'square')); break;
+      case 'breath': this._noiseBurst(out, t, 0.5, 'lowpass', 600, 0.6, 0.25, 0.45); break;
       case 'engine': this._tone(out, t, 80, 60, 0.3, 0.2, 'sawtooth'); break;
       default: break;
     }

@@ -94,6 +94,8 @@ export class ClientMode extends Mode {
         g.viewmodel.build(p.weapon);
         break;
       case 'end': this.onEnd(d); break;
+      case 'uav': (g.uavUntil ||= {})[p.team] = g.time + d.secs; break;
+      case 'uavWarn': g.events.emit('toast', { title: 'RADAR INIMIGO ATIVO', text: 'Eles sabem onde você está. Mantenha-se em movimento!' }); break;
       default: break;
     }
   }
